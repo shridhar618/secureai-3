@@ -1,0 +1,65 @@
+# macOS / editors
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs / temp files
+*.log
+*.out
+*.err
+*.pid
+*.pid.lock
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Python caches / tooling
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.Python
+
+# Virtual environments
+.venv/
+venv/
+venv311/
+backend/.venv/
+backend/venv/
+backend/venv311/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+!backend/.env.example
+
+# Python runtime / local app state
+instance/
+backend/instance/
+*.sqlite
+*.sqlite3
+*.db
+
+# Frontend dependencies / build output
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+build/
+coverage/
+

@@ -1,0 +1,280 @@
+[
+  {
+    "id": "leave-policy",
+    "category": "HR",
+    "question": "What is our company leave policy?",
+    "keywords": [
+      "leave",
+      "vacation",
+      "time off",
+      "pto"
+    ],
+    "answer": "Employees are entitled to 20 days of annual leave, 10 days of sick leave, and flexible work-from-home options per quarter."
+  },
+  {
+    "id": "onboarding-process",
+    "category": "HR",
+    "question": "Explain the onboarding process.",
+    "keywords": [
+      "onboarding",
+      "new hire",
+      "orientation",
+      "training"
+    ],
+    "answer": "The onboarding process includes IT setup on Day 1, HR orientation on Days 1-2, department training in Week 1, and a 30-day review with the reporting manager."
+  },
+  {
+    "id": "security-protocols",
+    "category": "Security",
+    "question": "What are our security protocols?",
+    "keywords": [
+      "security",
+      "protocols",
+      "mfa",
+      "zero trust",
+      "encryption"
+    ],
+    "answer": "Our security framework includes Zero Trust architecture, multi-factor authentication, encryption at rest and in transit, least-privilege access, and regular internal audits."
+  },
+  {
+    "id": "performance-reviews",
+    "category": "HR",
+    "question": "Tell me about performance reviews.",
+    "keywords": [
+      "performance",
+      "review",
+      "goals",
+      "evaluation"
+    ],
+    "answer": "Performance reviews are conducted twice a year. Goals are set in Q1, progress is reviewed mid-year, and the final evaluation is completed in Q4."
+  },
+  {
+    "id": "hello",
+    "category": "General",
+    "question": "Hello",
+    "keywords": [
+      "hello",
+      "hi",
+      "hey"
+    ],
+    "answer": "Hello! I'm SecureAI, your enterprise AI assistant. How can I help you today?"
+  },
+  {
+    "id": "help-capabilities",
+    "category": "General",
+    "question": "What can you help me with?",
+    "keywords": [
+      "help",
+      "support",
+      "capabilities",
+      "assist"
+    ],
+    "answer": "I can assist with HR policies, workplace guidelines, security questions, onboarding information, compliance topics, and general enterprise support."
+  },
+  {
+    "id": "remote-work-policy",
+    "category": "HR",
+    "question": "What is the remote work policy?",
+    "keywords": [
+      "remote work",
+      "work from home",
+      "hybrid",
+      "wfh"
+    ],
+    "answer": "Employees may work remotely based on team requirements and manager approval. Most teams follow a hybrid schedule with designated collaboration days."
+  },
+  {
+    "id": "expense-reimbursement",
+    "category": "Finance",
+    "question": "How does expense reimbursement work?",
+    "keywords": [
+      "expense",
+      "reimbursement",
+      "travel claim",
+      "receipts"
+    ],
+    "answer": "Expense claims should be submitted through the finance portal with receipts attached. Approved claims are usually reimbursed in the next payroll cycle."
+  },
+  {
+    "id": "it-support",
+    "category": "IT",
+    "question": "How do I contact IT support?",
+    "keywords": [
+      "it support",
+      "helpdesk",
+      "technical issue",
+      "ticket"
+    ],
+    "answer": "You can contact IT support through the internal helpdesk portal or the shared support email. Include device details, screenshots, and impact level for faster resolution."
+  },
+  {
+    "id": "password-reset",
+    "category": "IT",
+    "question": "How do I reset my password?",
+    "keywords": [
+      "reset password",
+      "forgot password",
+      "password help"
+    ],
+    "answer": "Use the self-service password reset page and complete MFA verification. If you cannot access the reset flow, contact IT support for identity verification."
+  },
+  {
+    "id": "report-phishing",
+    "category": "Security",
+    "question": "How should I report a phishing email?",
+    "keywords": [
+      "phishing",
+      "suspicious email",
+      "report email",
+      "malicious email"
+    ],
+    "answer": "Do not click links or download attachments. Report the message using the phishing-report button in email or forward it to the security team for investigation."
+  },
+  {
+    "id": "data-classification",
+    "category": "Security",
+    "question": "What are the data classification levels?",
+    "keywords": [
+      "data classification",
+      "confidential",
+      "internal",
+      "public"
+    ],
+    "answer": "Company data is generally classified as Public, Internal, Confidential, or Restricted. Higher sensitivity levels require stronger access controls and handling rules."
+  },
+  {
+    "id": "incident-response",
+    "category": "Security",
+    "question": "What should I do during a security incident?",
+    "keywords": [
+      "security incident",
+      "breach",
+      "incident response",
+      "report incident"
+    ],
+    "answer": "Immediately report the incident to the security team, preserve relevant evidence, avoid altering affected systems, and follow the documented incident response playbook."
+  },
+  {
+    "id": "benefits-enrollment",
+    "category": "HR",
+    "question": "When can I enroll in employee benefits?",
+    "keywords": [
+      "benefits",
+      "enrollment",
+      "insurance",
+      "open enrollment"
+    ],
+    "answer": "Employees can typically enroll during onboarding, qualifying life events, or the annual open enrollment period announced by HR."
+  },
+  {
+    "id": "travel-policy",
+    "category": "Operations",
+    "question": "What is the business travel policy?",
+    "keywords": [
+      "travel policy",
+      "business travel",
+      "flight booking",
+      "hotel booking"
+    ],
+    "answer": "Business travel should be pre-approved by the manager, booked through approved vendors, and aligned with the company travel and reimbursement policy."
+  },
+  {
+    "id": "meeting-room-booking",
+    "category": "Operations",
+    "question": "How do I book a meeting room?",
+    "keywords": [
+      "meeting room",
+      "conference room",
+      "book room",
+      "reserve room"
+    ],
+    "answer": "Meeting rooms can be reserved through the workplace calendar system. Please include the purpose, attendees, and any AV requirements when booking."
+  },
+  {
+    "id": "document-retention",
+    "category": "Compliance",
+    "question": "What is the document retention policy?",
+    "keywords": [
+      "document retention",
+      "records",
+      "retention policy",
+      "archive"
+    ],
+    "answer": "Document retention depends on the record type and regulatory requirements. Teams should follow the official retention schedule before archiving or deleting files."
+  },
+  {
+    "id": "code-of-conduct",
+    "category": "Compliance",
+    "question": "What does the code of conduct cover?",
+    "keywords": [
+      "code of conduct",
+      "workplace behavior",
+      "ethics",
+      "harassment"
+    ],
+    "answer": "The code of conduct covers respectful workplace behavior, anti-harassment expectations, ethical decision-making, compliance obligations, and reporting channels."
+  },
+  {
+    "id": "career-development",
+    "category": "HR",
+    "question": "How does career development work here?",
+    "keywords": [
+      "career development",
+      "growth",
+      "learning",
+      "promotion"
+    ],
+    "answer": "Career development is supported through goal setting, manager coaching, learning resources, internal mobility, and periodic growth conversations."
+  },
+  {
+    "id": "manager-escalation",
+    "category": "Operations",
+    "question": "How do I escalate a blocker to my manager?",
+    "keywords": [
+      "escalate blocker",
+      "manager help",
+      "roadblock",
+      "escalation"
+    ],
+    "answer": "Summarize the blocker, the impact, the options already tried, and the decision needed. Share that context with your manager early so they can unblock the next step quickly."
+  },
+  {
+    "id": "who-is-our-manager",
+    "category": "General",
+    "question": "who is our manager?",
+    "keywords": [
+      "manager",
+      "boss"
+    ],
+    "answer": "Our manager name is Shridhar Bhat. If u wanna meet him, go to 5th floor and take appointment and see him."
+  },
+  {
+    "id": "admin-audit-export",
+    "category": "Admin",
+    "question": "How do I export audit logs for compliance review?",
+    "keywords": [
+      "export audit logs",
+      "compliance review",
+      "audit export"
+    ],
+    "allowed_roles": [
+      "admin"
+    ],
+    "answer": "Admins can export audit activity from the dashboard export action to share governance evidence with compliance or leadership stakeholders."
+  },
+  {
+    "id": "hr-benefits-approval",
+    "category": "HR",
+    "question": "How does HR approve benefits exceptions?",
+    "keywords": [
+      "benefits exception",
+      "hr approval",
+      "policy exception"
+    ],
+    "allowed_roles": [
+      "admin",
+      "hr"
+    ],
+    "answer": "HR should document the request, review policy eligibility, collect supporting evidence, and record the final approval or rejection with the employee case notes."
+  }
+]
