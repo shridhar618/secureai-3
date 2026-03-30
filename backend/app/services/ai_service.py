@@ -15,6 +15,10 @@ from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
 
+import numpy as np
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
@@ -35,6 +39,8 @@ _STOP_WORDS = {
     "in", "is", "me", "my", "of", "our", "the", "to", "what", "when", "with",
     "work", "you",
 }
+_ML_MATCH_THRESHOLD = 0.28
+_HEURISTIC_MATCH_THRESHOLD = 6
 
 
 def get_ai_response(messages: list[dict]) -> str:
@@ -452,6 +458,22 @@ def _load_question_bank() -> list[dict]:
     return [_normalize_question_record(item) for item in _read_question_bank()]
 
 
+@lru_cache(maxsize=1)
+def _get_question_bank_index() -> dict | None:
+    question_bank = _load_question_bank()
+    if not question_bank:
+        return None
+
+    documents = [_build_training_text(item) for item in question_bank]
+    vectorizer = TfidfVectorizer(ngram_range=(1, 2), stop_words="english")
+    matrix = vectorizer.fit_transform(documents)
+    return {
+        "questions": question_bank,
+        "vectorizer": vectorizer,
+        "matrix": matrix,
+    }
+
+
 def _read_question_bank() -> list[dict]:
     _ensure_data_files()
     with QUESTION_BANK_PATH.open("r", encoding="utf-8") as file_obj:
@@ -473,7 +495,42 @@ def _match_question(query: str, role: str | None = None) -> dict | None:
     if not query_text:
         return None
 
-    query_tokens = set(_tokenize(query_text))
+    ml_match = _match_question_with_ml(query_text, role)
+    if ml_match:
+        return ml_match
+
+    return _match_question_with_heuristics(query_text, role)
+
+
+def _match_question_with_ml(query_text: str, role: str | None = None) -> dict | None:
+    index = _get_question_bank_index()
+    if not index:
+        return None
+
+    filtered_questions = _filter_by_role(index["questions"], role)
+    if not filtered_questions:
+        return None
+
+    query_vector = index["vectorizer"].transform([query_text])
+    similarities = cosine_similarity(query_vector, index["matrix"]).ravel()
+    ranked_indices = np.argsort(similarities)[::-1]
+
+    allowed_ids = {item["id"] for item in filtered_questions}
+
+    for index_value in ranked_indices:
+        item = index["questions"][int(index_value)]
+        if item["id"] not in allowed_ids:
+            continue
+
+        score = float(similarities[int(index_value)])
+        if score >= _ML_MATCH_THRESHOLD:
+            return item
+
+    return None
+
+
+def _match_question_with_heuristics(query_text: str, role: str | None = None) -> dict | None:
+    query_tokens = set(_extract_keywords(query_text))
     best_match = None
     best_score = 0
 
@@ -488,17 +545,17 @@ def _match_question(query: str, role: str | None = None) -> dict | None:
 
         for keyword in item["keywords"]:
             keyword_text = keyword.lower()
-            if keyword_text and keyword_text in query_text:
+            if keyword_text and _keyword_in_text(keyword_text, query_text):
                 score += 10
 
-        question_tokens = set(_tokenize(question_text))
+        question_tokens = set(_extract_keywords(question_text))
         score += len(query_tokens & question_tokens) * 2
 
         if score > best_score:
             best_score = score
             best_match = item
 
-    return best_match if best_score >= 6 else None
+    return best_match if best_score >= _HEURISTIC_MATCH_THRESHOLD else None
 
 
 def _filter_by_role(question_bank: list[dict], role: str | None) -> list[dict]:
@@ -556,6 +613,7 @@ def _write_json_array(path: Path, values: list[dict]) -> None:
 
 def _clear_caches() -> None:
     _load_question_bank.cache_clear()
+    _get_question_bank_index.cache_clear()
 
 
 def _build_unique_id(question: str, question_bank: list[dict]) -> str:
@@ -594,6 +652,27 @@ def _normalize_roles(roles: list[str] | None) -> list[str]:
             normalized.append(value)
             seen.add(value)
     return normalized or DEFAULT_ALLOWED_ROLES.copy()
+
+
+def _build_training_text(item: dict) -> str:
+    keyword_text = " ".join(item["keywords"])
+    return f"{item['question']} {keyword_text} {keyword_text}"
+
+
+def _keyword_in_text(keyword: str, text: str) -> bool:
+    keyword_tokens = _tokenize(keyword)
+    text_tokens = _tokenize(text)
+    if not keyword_tokens or not text_tokens:
+        return False
+
+    if len(keyword_tokens) == 1:
+        return keyword_tokens[0] in set(text_tokens)
+
+    window_size = len(keyword_tokens)
+    for index in range(len(text_tokens) - window_size + 1):
+        if text_tokens[index:index + window_size] == keyword_tokens:
+            return True
+    return False
 
 
 def _extract_keywords(question: str) -> list[str]:
