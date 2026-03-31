@@ -40,5 +40,27 @@
       "answer": "Temporary smoke test answer."
     },
     "after": null
+  },
+  {
+    "timestamp": "2026-03-31T11:35:17.784322",
+    "action": "create",
+    "question_id": "salalry-for-the-leo",
+    "actor": "admin",
+    "before": null,
+    "after": {
+      "id": "salalry-for-the-leo",
+      "category": "General",
+      "question": "salalry for the Leo",
+      "keywords": [
+        "salalry",
+        "leo"
+      ],
+      "allowed_roles": [
+        "admin",
+        "hr",
+        "intern"
+      ],
+      "answer": "5 cr"
+    }
   }
 ]

@@ -276,5 +276,20 @@
       "hr"
     ],
     "answer": "HR should document the request, review policy eligibility, collect supporting evidence, and record the final approval or rejection with the employee case notes."
+  },
+  {
+    "id": "salalry-for-the-leo",
+    "category": "General",
+    "question": "salalry for the Leo",
+    "keywords": [
+      "salalry",
+      "leo"
+    ],
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ],
+    "answer": "5 cr"
   }
 ]
