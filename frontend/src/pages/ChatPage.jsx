@@ -320,8 +320,96 @@ export default function ChatPage() {
     window.URL.revokeObjectURL(url)
   }
 
+  const questionBankPanel = (
+    <div className="glass-light border border-white/8 rounded-2xl overflow-hidden h-full flex flex-col">
+      <button onClick={() => setQuestionPanelOpen(prev => !prev)} className="w-full px-4 py-3 flex items-center justify-between text-left flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <BookOpen size={14} className="text-accent" />
+          <div>
+            <p className="text-xs font-semibold text-white">Question Bank</p>
+            <p className="text-[10px] font-mono text-slate-500">{questions.length} available · {favorites.length} favorites</p>
+          </div>
+        </div>
+        {questionPanelOpen ? <ChevronUp size={14} className="text-slate-500" /> : <ChevronDown size={14} className="text-slate-500" />}
+      </button>
+      <AnimatePresence initial={false}>
+        {questionPanelOpen && (
+          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden border-t border-white/6 min-h-0 flex-1">
+            <div className="p-4 space-y-3 h-full flex flex-col min-h-0">
+              <div className="relative flex-shrink-0">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" />
+                <input value={questionSearch} onChange={e => setQuestionSearch(e.target.value)} placeholder="Search role-aware questions..." className="w-full pl-9 pr-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-accent/40" />
+              </div>
+
+              {!!favorites.length && (
+                <div className="flex-shrink-0">
+                  <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-2">Pinned favorites</p>
+                  <div className="flex flex-wrap gap-2">
+                    {favorites.map(item => (
+                      <button key={item.id} onClick={() => sendMessage(item.question)} className="px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/20 text-xs text-accent">
+                        <Star size={11} className="inline mr-1.5 fill-current" />{item.question}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {questionError && <div className="px-3 py-2 rounded-xl bg-danger/10 border border-danger/20 text-xs text-danger flex-shrink-0">{questionError}</div>}
+
+              <div className="min-h-0 overflow-y-auto space-y-2 pr-1">
+                {filteredQuestions.map(item => (
+                  <div key={item.id} className="w-full text-left px-3 py-2.5 rounded-xl border border-white/8 bg-bg-800/70">
+                    <div className="flex items-start justify-between gap-3">
+                      <button onClick={() => sendMessage(item.question)} className="flex-1 text-left">
+                        <p className="text-sm text-slate-200">{item.question}</p>
+                        <span className="text-[10px] font-mono uppercase text-slate-500">{item.category} · {(item.allowed_roles || []).join(', ')}</span>
+                      </button>
+                      <button onClick={() => toggleFavorite(item.id, item.is_favorite)} className={`p-2 rounded-lg border ${item.is_favorite ? 'bg-accent/10 border-accent/20 text-accent' : 'bg-white/5 border-white/8 text-slate-400'}`}>
+                        <Star size={12} className={item.is_favorite ? 'fill-current' : ''} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {!filteredQuestions.length && <p className="text-xs text-slate-500 font-mono">No questions matched that search.</p>}
+              </div>
+
+              {user?.role === 'admin' && (
+                <div className="pt-2 border-t border-white/6 space-y-2 flex-shrink-0">
+                  <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Quick add dataset question</p>
+                  <input value={questionForm.question} onChange={e => setQuestionForm(prev => ({ ...prev, question: e.target.value }))} placeholder="Question" className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600" />
+                  <textarea value={questionForm.answer} onChange={e => setQuestionForm(prev => ({ ...prev, answer: e.target.value }))} rows={3} placeholder="Answer" className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600 resize-none" />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <input value={questionForm.category} onChange={e => setQuestionForm(prev => ({ ...prev, category: e.target.value }))} placeholder="Category" className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600" />
+                    <input value={questionForm.keywords} onChange={e => setQuestionForm(prev => ({ ...prev, keywords: e.target.value }))} placeholder="Keywords, comma separated" className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600" />
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {['admin', 'hr', 'intern'].map(role => (
+                      <button
+                        key={role}
+                        onClick={() => setQuestionForm(prev => ({
+                          ...prev,
+                          allowed_roles: prev.allowed_roles.includes(role) ? prev.allowed_roles.filter(item => item !== role) : [...prev.allowed_roles, role],
+                        }))}
+                        className={`px-3 py-2 rounded-xl text-xs border ${questionForm.allowed_roles.includes(role) ? 'bg-accent/10 border-accent/20 text-accent' : 'bg-white/5 border-white/8 text-slate-300'}`}
+                      >
+                        {role}
+                      </button>
+                    ))}
+                  </div>
+                  <button onClick={addQuestion} disabled={savingQuestion} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-bg-900 text-sm font-semibold disabled:opacity-50">
+                    <Plus size={14} />{savingQuestion ? 'Saving...' : 'Add question'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full min-h-0">
       <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 glass flex-shrink-0">
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -351,138 +439,60 @@ export default function ChatPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-4">
-        <AnimatePresence initial={false}>
-          {messages.map(msg => <ChatBubble key={msg.id} msg={msg} onFeedback={submitFeedback} />)}
-          {loading && <TypingIndicator key="typing" />}
-        </AnimatePresence>
-        {!!suggestedQuestions.length && (
-          <div className="mt-4 ml-11">
-            <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-2">Suggested next questions</p>
-            <div className="flex flex-wrap gap-2">
-              {suggestedQuestions.map(item => (
-                <button key={item.id} onClick={() => sendMessage(item.question)} className="text-xs px-3 py-1.5 rounded-lg glass-light border border-white/8 text-slate-400 hover:text-accent hover:border-accent/30">
-                  {item.question}
-                </button>
-              ))}
+      <div className="flex-1 min-h-0 px-6 py-4">
+        <div className="h-full min-h-0 flex flex-col xl:flex-row gap-4">
+          <div className="flex-1 min-h-0 glass-light border border-white/8 rounded-2xl overflow-hidden flex flex-col">
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+              <AnimatePresence initial={false}>
+                {messages.map(msg => <ChatBubble key={msg.id} msg={msg} onFeedback={submitFeedback} />)}
+                {loading && <TypingIndicator key="typing" />}
+              </AnimatePresence>
+              {!!suggestedQuestions.length && (
+                <div className="mt-4 ml-11">
+                  <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-2">Suggested next questions</p>
+                  <div className="flex flex-wrap gap-2">
+                    {suggestedQuestions.map(item => (
+                      <button key={item.id} onClick={() => sendMessage(item.question)} className="text-xs px-3 py-1.5 rounded-lg glass-light border border-white/8 text-slate-400 hover:text-accent hover:border-accent/30">
+                        {item.question}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div ref={bottomRef} />
+            </div>
+
+            <div className="px-6 py-4 border-t border-white/5 flex-shrink-0">
+              <div className="flex gap-3 items-end">
+                <textarea
+                  ref={inputRef}
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      sendMessage()
+                    }
+                  }}
+                  rows={1}
+                  className="flex-1 px-4 py-3 rounded-xl bg-bg-800 border border-white/8 text-white placeholder-slate-600 focus:outline-none focus:border-accent/50 focus:shadow-glow transition-all text-sm resize-none font-mono leading-relaxed"
+                  placeholder="Ask SecureAI anything... (Enter to send)"
+                  style={{ minHeight: '48px', maxHeight: '120px' }}
+                />
+                <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => sendMessage()} disabled={loading || !input.trim()} className="w-12 h-12 rounded-xl bg-accent text-bg-900 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-accent-dim transition-all shadow-glow flex-shrink-0">
+                  <Send size={16} />
+                </motion.button>
+              </div>
+              <p className="text-[10px] text-slate-600 mt-2 font-mono text-center">
+                RBAC · Layer-2 Validator · Risk Scoring · Explainability · Favorites · Feedback · Export
+              </p>
             </div>
           </div>
-        )}
-        <div ref={bottomRef} />
-      </div>
 
-      <div className="px-6 pb-3 flex-shrink-0">
-        <div className="glass-light border border-white/8 rounded-2xl overflow-hidden">
-          <button onClick={() => setQuestionPanelOpen(prev => !prev)} className="w-full px-4 py-3 flex items-center justify-between text-left">
-            <div className="flex items-center gap-2">
-              <BookOpen size={14} className="text-accent" />
-              <div>
-                <p className="text-xs font-semibold text-white">Question Bank</p>
-                <p className="text-[10px] font-mono text-slate-500">{questions.length} available · {favorites.length} favorites</p>
-              </div>
-            </div>
-            {questionPanelOpen ? <ChevronUp size={14} className="text-slate-500" /> : <ChevronDown size={14} className="text-slate-500" />}
-          </button>
-          <AnimatePresence initial={false}>
-            {questionPanelOpen && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden border-t border-white/6">
-                <div className="p-4 space-y-3">
-                  <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" />
-                    <input value={questionSearch} onChange={e => setQuestionSearch(e.target.value)} placeholder="Search role-aware questions..." className="w-full pl-9 pr-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-accent/40" />
-                  </div>
-
-                  {!!favorites.length && (
-                    <div>
-                      <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-2">Pinned favorites</p>
-                      <div className="flex flex-wrap gap-2">
-                        {favorites.map(item => (
-                          <button key={item.id} onClick={() => sendMessage(item.question)} className="px-3 py-1.5 rounded-lg bg-accent/10 border border-accent/20 text-xs text-accent">
-                            <Star size={11} className="inline mr-1.5 fill-current" />{item.question}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {questionError && <div className="px-3 py-2 rounded-xl bg-danger/10 border border-danger/20 text-xs text-danger">{questionError}</div>}
-
-                  <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
-                    {filteredQuestions.map(item => (
-                      <div key={item.id} className="w-full text-left px-3 py-2.5 rounded-xl border border-white/8 bg-bg-800/70">
-                        <div className="flex items-start justify-between gap-3">
-                          <button onClick={() => sendMessage(item.question)} className="flex-1 text-left">
-                            <p className="text-sm text-slate-200">{item.question}</p>
-                            <span className="text-[10px] font-mono uppercase text-slate-500">{item.category} · {(item.allowed_roles || []).join(', ')}</span>
-                          </button>
-                          <button onClick={() => toggleFavorite(item.id, item.is_favorite)} className={`p-2 rounded-lg border ${item.is_favorite ? 'bg-accent/10 border-accent/20 text-accent' : 'bg-white/5 border-white/8 text-slate-400'}`}>
-                            <Star size={12} className={item.is_favorite ? 'fill-current' : ''} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {!filteredQuestions.length && <p className="text-xs text-slate-500 font-mono">No questions matched that search.</p>}
-                  </div>
-
-                  {user?.role === 'admin' && (
-                    <div className="pt-2 border-t border-white/6 space-y-2">
-                      <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Quick add dataset question</p>
-                      <input value={questionForm.question} onChange={e => setQuestionForm(prev => ({ ...prev, question: e.target.value }))} placeholder="Question" className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600" />
-                      <textarea value={questionForm.answer} onChange={e => setQuestionForm(prev => ({ ...prev, answer: e.target.value }))} rows={3} placeholder="Answer" className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600 resize-none" />
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <input value={questionForm.category} onChange={e => setQuestionForm(prev => ({ ...prev, category: e.target.value }))} placeholder="Category" className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600" />
-                        <input value={questionForm.keywords} onChange={e => setQuestionForm(prev => ({ ...prev, keywords: e.target.value }))} placeholder="Keywords, comma separated" className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600" />
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {['admin', 'hr', 'intern'].map(role => (
-                          <button
-                            key={role}
-                            onClick={() => setQuestionForm(prev => ({
-                              ...prev,
-                              allowed_roles: prev.allowed_roles.includes(role) ? prev.allowed_roles.filter(item => item !== role) : [...prev.allowed_roles, role],
-                            }))}
-                            className={`px-3 py-2 rounded-xl text-xs border ${questionForm.allowed_roles.includes(role) ? 'bg-accent/10 border-accent/20 text-accent' : 'bg-white/5 border-white/8 text-slate-300'}`}
-                          >
-                            {role}
-                          </button>
-                        ))}
-                      </div>
-                      <button onClick={addQuestion} disabled={savingQuestion} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent text-bg-900 text-sm font-semibold disabled:opacity-50">
-                        <Plus size={14} />{savingQuestion ? 'Saving...' : 'Add question'}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <aside className="xl:w-[360px] xl:min-w-[320px] xl:max-w-[400px] min-h-0">
+            {questionBankPanel}
+          </aside>
         </div>
-      </div>
-
-      <div className="px-6 py-4 border-t border-white/5 flex-shrink-0">
-        <div className="flex gap-3 items-end">
-          <textarea
-            ref={inputRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={e => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault()
-                sendMessage()
-              }
-            }}
-            rows={1}
-            className="flex-1 px-4 py-3 rounded-xl bg-bg-800 border border-white/8 text-white placeholder-slate-600 focus:outline-none focus:border-accent/50 focus:shadow-glow transition-all text-sm resize-none font-mono leading-relaxed"
-            placeholder="Ask SecureAI anything... (Enter to send)"
-            style={{ minHeight: '48px', maxHeight: '120px' }}
-          />
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={() => sendMessage()} disabled={loading || !input.trim()} className="w-12 h-12 rounded-xl bg-accent text-bg-900 flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed hover:bg-accent-dim transition-all shadow-glow flex-shrink-0">
-            <Send size={16} />
-          </motion.button>
-        </div>
-        <p className="text-[10px] text-slate-600 mt-2 font-mono text-center">
-          RBAC · Layer-2 Validator · Risk Scoring · Explainability · Favorites · Feedback · Export
-        </p>
       </div>
     </motion.div>
   )

@@ -543,13 +543,25 @@ def _match_question_with_heuristics(query_text: str, role: str | None = None) ->
         elif question_text in query_text or query_text in question_text:
             score += 30
 
+        for alias in item.get("aliases", []):
+            if query_text == alias:
+                score += 60
+            elif alias in query_text or query_text in alias:
+                score += 24
+
         for keyword in item["keywords"]:
             keyword_text = keyword.lower()
             if keyword_text and _keyword_in_text(keyword_text, query_text):
                 score += 10
 
         question_tokens = set(_extract_keywords(question_text))
+        alias_tokens = set()
+        for alias in item.get("aliases", []):
+            alias_tokens.update(_extract_keywords(alias))
+        answer_tokens = set(_extract_keywords(item["answer"]))
         score += len(query_tokens & question_tokens) * 2
+        score += len(query_tokens & alias_tokens) * 2
+        score += min(3, len(query_tokens & answer_tokens))
 
         if score > best_score:
             best_score = score
@@ -569,6 +581,7 @@ def _normalize_question_record(item: dict) -> dict:
         "id": str(item["id"]),
         "category": str(item.get("category", "General")).strip() or "General",
         "question": str(item["question"]).strip(),
+        "aliases": _normalize_aliases(item.get("aliases", [])),
         "keywords": _normalize_keywords(item.get("keywords", [])),
         "allowed_roles": _normalize_roles(item.get("allowed_roles", DEFAULT_ALLOWED_ROLES)),
         "answer": str(item["answer"]).strip(),
@@ -642,6 +655,17 @@ def _normalize_keywords(keywords: list[str]) -> list[str]:
     return cleaned
 
 
+def _normalize_aliases(aliases: list[str]) -> list[str]:
+    cleaned = []
+    seen = set()
+    for alias in aliases:
+        value = " ".join(str(alias).strip().lower().split())
+        if value and value not in seen:
+            cleaned.append(value)
+            seen.add(value)
+    return cleaned
+
+
 def _normalize_roles(roles: list[str] | None) -> list[str]:
     normalized = []
     seen = set()
@@ -655,8 +679,10 @@ def _normalize_roles(roles: list[str] | None) -> list[str]:
 
 
 def _build_training_text(item: dict) -> str:
+    alias_text = " ".join(item.get("aliases", []))
     keyword_text = " ".join(item["keywords"])
-    return f"{item['question']} {keyword_text} {keyword_text}"
+    answer_tokens = " ".join(_extract_keywords(item["answer"]))[:300]
+    return f"{item['category']} {item['question']} {alias_text} {alias_text} {keyword_text} {keyword_text} {answer_tokens}"
 
 
 def _keyword_in_text(keyword: str, text: str) -> bool:
