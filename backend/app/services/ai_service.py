@@ -39,6 +39,21 @@ _STOP_WORDS = {
     "in", "is", "me", "my", "of", "our", "the", "to", "what", "when", "with",
     "work", "you",
 }
+_FOLLOW_UP_PREFIXES = (
+    "and ",
+    "also ",
+    "what about",
+    "how about",
+    "tell me more",
+    "more on",
+    "more about",
+    "can you explain",
+    "can you elaborate",
+)
+_FOLLOW_UP_TOKENS = {
+    "and", "also", "that", "this", "it", "they", "them", "those", "these",
+    "he", "she", "more", "too", "same", "continue",
+}
 _ML_MATCH_THRESHOLD = 0.28
 _HEURISTIC_MATCH_THRESHOLD = 6
 
@@ -285,6 +300,11 @@ def infer_question_category(query: str) -> str | None:
     return matched["category"] if matched else None
 
 
+def resolve_contextual_query(messages: list[dict]) -> str:
+    candidates = _build_contextual_query_candidates(messages)
+    return candidates[0] if candidates else ""
+
+
 def get_suggested_questions(query: str, role: str | None = None, limit: int = 4) -> list[dict]:
     candidates = _filter_by_role(_load_question_bank(), role)
     if not candidates:
@@ -427,15 +447,10 @@ def _gemini_response(messages: list[dict]) -> str:
 
 
 def _mock_response(messages: list[dict]) -> str:
-    query = ""
-    for message in reversed(messages):
-        if message.get("role") == "user":
-            query = message.get("content", "").lower()
-            break
-
-    matched_entry = _match_question(query)
-    if matched_entry:
-        return matched_entry["answer"]
+    for candidate in _build_contextual_query_candidates(messages):
+        matched_entry = _match_question(candidate)
+        if matched_entry:
+            return matched_entry["answer"]
 
     return (
         "I'm SecureAI running in demo mode (no API key configured). "
@@ -500,6 +515,57 @@ def _match_question(query: str, role: str | None = None) -> dict | None:
         return ml_match
 
     return _match_question_with_heuristics(query_text, role)
+
+
+def _build_contextual_query_candidates(messages: list[dict]) -> list[str]:
+    current_user_message = ""
+    previous_user_message = ""
+    recent_assistant_message = ""
+
+    for message in reversed(messages):
+        role = message.get("role")
+        content = str(message.get("content", "")).strip()
+        if not content:
+            continue
+        if role == "user" and not current_user_message:
+            current_user_message = content
+            continue
+        if role == "assistant" and not recent_assistant_message:
+            recent_assistant_message = content
+            continue
+        if role == "user" and not previous_user_message:
+            previous_user_message = content
+            break
+
+    if not current_user_message:
+        return []
+
+    candidates = [current_user_message.lower()]
+    if not previous_user_message or not _looks_like_follow_up(current_user_message):
+        return candidates
+
+    combined_user_context = f"{previous_user_message} {current_user_message}".strip().lower()
+    candidates.append(combined_user_context)
+
+    if recent_assistant_message:
+        candidates.append(f"{previous_user_message} {recent_assistant_message} {current_user_message}".strip().lower())
+
+    return candidates
+
+
+def _looks_like_follow_up(query: str) -> bool:
+    normalized_query = " ".join((query or "").strip().lower().split())
+    if not normalized_query:
+        return False
+
+    if normalized_query.startswith(_FOLLOW_UP_PREFIXES):
+        return True
+
+    tokens = _tokenize(normalized_query)
+    if len(tokens) <= 5 and any(token in _FOLLOW_UP_TOKENS for token in tokens):
+        return True
+
+    return False
 
 
 def _match_question_with_ml(query_text: str, role: str | None = None) -> dict | None:

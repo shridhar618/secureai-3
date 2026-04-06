@@ -24,6 +24,7 @@ from app.services.ai_service import (
     list_mock_questions,
     list_question_history,
     list_unanswered_questions,
+    resolve_contextual_query,
     resolve_unanswered_question,
     serialize_question,
     update_mock_question,
@@ -65,12 +66,13 @@ def chat():
     if user_id not in _histories:
         _histories[user_id] = []
     _histories[user_id].append({"role": "user", "content": query})
+    contextual_query = resolve_contextual_query(_histories[user_id])
 
     raw_response = get_ai_response(_histories[user_id])
     result = apply_governance(raw_response, query, user.role)
-    matched_question = find_question_match_for_query(query, user.role)
+    matched_question = find_question_match_for_query(contextual_query or query, user.role)
     if not matched_question:
-        capture_unanswered_question(query, user.role, user.username)
+        capture_unanswered_question(contextual_query or query, user.role, user.username)
 
     _histories[user_id].append({"role": "assistant", "content": raw_response})
     if len(_histories[user_id]) > 20:
@@ -112,7 +114,7 @@ def chat():
         "is_high_risk": result.is_high_risk_alert,
         "role": user.role,
         "matched_question": serialize_question(matched_question) if matched_question else None,
-        "suggested_questions": get_suggested_questions(query, user.role),
+        "suggested_questions": get_suggested_questions(contextual_query or query, user.role),
     }), 200
 
 
