@@ -140,6 +140,21 @@ function ChatBubble({ msg, onFeedback }) {
           </div>
         </div>
       </motion.div>
+      {!isUser && msg.status === 'blocked' && msg.reason && (
+        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="mt-2 ml-11">
+          <div className="rounded-xl border border-danger/25 bg-danger/10 p-3 text-[11px] font-mono text-danger/90 space-y-2">
+            <div className="flex items-center gap-2 font-bold uppercase tracking-wide">
+              <AlertTriangle size={12} />Blocked Request Details
+            </div>
+            <p>{msg.reason}</p>
+            {!!msg.triggered_rules?.length && (
+              <p className="text-danger/80">
+                Triggered by: {msg.triggered_rules.join(', ')}
+              </p>
+            )}
+          </div>
+        </motion.div>
+      )}
       {!isUser && <GovernancePanel msg={msg} />}
       {!isUser && <FeedbackBar msg={msg} onFeedback={onFeedback} />}
     </>

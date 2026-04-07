@@ -120,7 +120,7 @@ def apply_governance(response: str, query: str, role: str) -> FilterResult:
         risk_level = _classify_risk(risk_score)
 
     if role == "intern":
-        result = _filter_intern(response, risk_score, risk_level)
+        result = _filter_intern(query, response, risk_score, risk_level)
     elif role == "hr":
         result = _filter_hr(response, risk_score, risk_level)
     else:
@@ -149,25 +149,31 @@ def compute_query_sensitivity(query: str) -> bool:
 # Layer 1 — Role filters
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _filter_intern(response, risk_score, risk_level):
-    for pattern, label in INTERN_BLOCKED_RULES:
-        if re.search(pattern, response, re.IGNORECASE):
-            explanation = (
-                f"Response blocked because it contains {label}. "
-                f"This information requires HR or Admin clearance."
-            )
-            return FilterResult(
-                filtered_response=(
-                    "Access Restricted: You are not authorized to view this information. "
-                    f"Reason: {explanation}"
-                ),
-                status="blocked",
-                risk_score=max(risk_score, 0.75),
-                risk_level="high",
-                reason=explanation,
-                triggered_rules=[label],
-                is_high_risk_alert=True,
-            )
+def _filter_intern(query, response, risk_score, risk_level):
+    triggered = _detect_intern_blocked_rules(query, response)
+    if triggered:
+        joined = ", ".join(triggered)
+        explanation = (
+            f"This request is blocked because it asks about restricted information: {joined}. "
+            "Intern accounts cannot access confidential, credential, compensation, or regulated personal data."
+        )
+        guidance = (
+            "Why you cannot ask this: your current role does not have permission to view or request that data. "
+            "If you need legitimate access, contact HR or an admin, or ask for a high-level policy summary instead."
+        )
+        return FilterResult(
+            filtered_response=(
+                "Alert: Request blocked by SecureAI policy.\n"
+                f"Why it was blocked: {explanation}\n"
+                f"Why you cannot ask this: {guidance}"
+            ),
+            status="blocked",
+            risk_score=max(risk_score, 0.75),
+            risk_level="high",
+            reason=f"{explanation} {guidance}",
+            triggered_rules=triggered,
+            is_high_risk_alert=True,
+        )
     return FilterResult(
         filtered_response=response,
         status="allowed",
@@ -223,6 +229,15 @@ def _layer2_validator(response, query):
                 f"(matched: {', '.join(repr(h) for h in sample)})"
             )
     return notes
+
+
+def _detect_intern_blocked_rules(query, response):
+    combined = f"{query or ''} {response or ''}"
+    triggered = []
+    for pattern, label in INTERN_BLOCKED_RULES:
+        if re.search(pattern, combined, re.IGNORECASE) and label not in triggered:
+            triggered.append(label)
+    return triggered
 
 
 # ─────────────────────────────────────────────────────────────────────────────
