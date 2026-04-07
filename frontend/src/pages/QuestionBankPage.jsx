@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
 import {
   Database, Download, Upload, Pencil, Trash2, Save, X, Search,
@@ -21,11 +21,16 @@ export default function QuestionBankPage() {
   const [queueItems, setQueueItems] = useState([])
   const [query, setQuery] = useState('')
   const [loading, setLoading] = useState(true)
+  const [searching, setSearching] = useState(false)
   const [error, setError] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [form, setForm] = useState(DEFAULT_FORM)
   const [importText, setImportText] = useState('')
+  const [importFile, setImportFile] = useState(null)
+  const [importing, setImporting] = useState(false)
+  const [importSummary, setImportSummary] = useState('')
   const [queueNote, setQueueNote] = useState({})
+  const fileInputRef = useRef(null)
 
   const loadAll = async () => {
     setLoading(true)
@@ -50,21 +55,36 @@ export default function QuestionBankPage() {
     loadAll()
   }, [])
 
-  const filteredQuestions = useMemo(() => {
-    const needle = query.trim().toLowerCase()
-    if (!needle) return questions
-    return questions.filter(item =>
-      [item.question, item.category, ...(item.keywords || []), ...(item.allowed_roles || [])]
-        .join(' ')
-        .toLowerCase()
-        .includes(needle)
-    )
-  }, [questions, query])
-
   const resetForm = () => {
     setEditingId(null)
     setForm(DEFAULT_FORM)
   }
+
+  useEffect(() => {
+    const needle = query.trim()
+    if (!needle) {
+      loadAll()
+      return undefined
+    }
+
+    const timeoutId = window.setTimeout(async () => {
+      setSearching(true)
+      setError('')
+      try {
+        const res = await api.get('/chat/questions/search', {
+          params: { q: needle, limit: 100 },
+        })
+        setQuestions(res.data.questions || [])
+      } catch (err) {
+        setError(err?.response?.data?.error || 'Unable to search questions right now.')
+      } finally {
+        setSearching(false)
+        setLoading(false)
+      }
+    }, 250)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [query])
 
   const startEdit = (item) => {
     setEditingId(item.id)
@@ -114,13 +134,40 @@ export default function QuestionBankPage() {
   }
 
   const importQuestions = async () => {
+    if (!importFile && !importText.trim()) {
+      fileInputRef.current?.click()
+      return
+    }
+
+    setError('')
+    setImportSummary('')
     try {
-      const parsed = JSON.parse(importText)
-      await api.post('/chat/questions/import', { questions: parsed })
+      setImporting(true)
+      let response
+      if (importFile) {
+        const formData = new FormData()
+        formData.append('file', importFile)
+        response = await api.post('/chat/questions/import', formData)
+      } else {
+        const parsed = JSON.parse(importText)
+        response = await api.post('/chat/questions/import', { questions: parsed })
+      }
+
+      const importedCount = response?.data?.count || 0
+      const duplicateCount = response?.data?.skipped_duplicates?.length || 0
+      const sourceType = response?.data?.metadata?.source_type
+      const parts = [`Imported ${importedCount} question${importedCount === 1 ? '' : 's'}`]
+      if (sourceType) parts.push(`from ${sourceType.toUpperCase()}`)
+      if (duplicateCount) parts.push(`skipped ${duplicateCount} duplicate${duplicateCount === 1 ? '' : 's'}`)
+      setImportSummary(parts.join(' · '))
+
       setImportText('')
-      loadAll()
+      setImportFile(null)
+      await loadAll()
     } catch (err) {
-      setError(err?.response?.data?.error || 'Import failed. Use a valid JSON array.')
+      setError(err?.response?.data?.error || 'Import failed. Upload a valid .json/.pdf file or paste a valid JSON array.')
+    } finally {
+      setImporting(false)
     }
   }
 
@@ -204,9 +251,9 @@ export default function QuestionBankPage() {
               </div>
 
               <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-                {loading ? (
-                  <p className="text-xs text-slate-500 font-mono">Loading dataset...</p>
-                ) : filteredQuestions.map(item => (
+                {loading || searching ? (
+                  <p className="text-xs text-slate-500 font-mono">{searching ? 'Searching questions...' : 'Loading dataset...'}</p>
+                ) : questions.map(item => (
                   <div key={item.id} className="rounded-2xl bg-bg-800/70 border border-white/8 p-4 space-y-3">
                     <div className="flex items-start justify-between gap-3">
                       <div>
@@ -239,6 +286,11 @@ export default function QuestionBankPage() {
                     </div>
                   </div>
                 ))}
+                {!loading && !searching && !questions.length && (
+                  <p className="text-xs text-slate-500 font-mono">
+                    {query.trim() ? 'No questions matched those keywords.' : 'No questions found.'}
+                  </p>
+                )}
               </div>
             </div>
 
@@ -349,9 +401,29 @@ export default function QuestionBankPage() {
                 <Upload size={16} className="text-accent" />
                 <div>
                   <p className="text-sm font-bold text-white">Bulk Import</p>
-                  <p className="text-[10px] font-mono text-slate-500">Paste a JSON array of question objects</p>
+                  <p className="text-[10px] font-mono text-slate-500">Upload a .json or .pdf dataset, or paste a JSON array</p>
                 </div>
               </div>
+              <label className="flex items-center justify-center w-full px-4 py-4 rounded-2xl border border-dashed border-white/10 bg-bg-800 text-sm text-slate-300 cursor-pointer hover:border-accent/40 hover:text-white transition-colors">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".json,.pdf,application/json,application/pdf"
+                  className="hidden"
+                  onChange={e => setImportFile(e.target.files?.[0] || null)}
+                />
+                <span>
+                  {importFile ? `Selected file: ${importFile.name}` : 'Choose dataset file'}
+                </span>
+              </label>
+              {importFile && (
+                <button
+                  onClick={() => setImportFile(null)}
+                  className="mt-3 px-3 py-2 rounded-xl bg-white/5 border border-white/8 text-xs text-slate-300"
+                >
+                  <X size={12} className="inline mr-1.5" />Clear selected file
+                </button>
+              )}
               <textarea
                 rows={8}
                 value={importText}
@@ -359,8 +431,20 @@ export default function QuestionBankPage() {
                 placeholder='[{"question":"...","answer":"...","category":"HR","keywords":["policy"],"allowed_roles":["admin","hr","intern"]}]'
                 className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600 resize-none"
               />
-              <button onClick={importQuestions} className="mt-3 px-4 py-2 rounded-xl bg-accent text-bg-900 text-sm font-semibold">
-                <Upload size={13} className="inline mr-1.5" />Import questions
+              <p className="mt-3 text-[10px] font-mono text-slate-500">
+                PDF files should contain labeled fields like `Question:` and `Answer:` or embedded JSON.
+              </p>
+              {importSummary && (
+                <div className="mt-3 px-4 py-3 rounded-xl bg-success/10 border border-success/20 text-sm text-success">
+                  {importSummary}
+                </div>
+              )}
+              <button
+                onClick={importQuestions}
+                disabled={importing}
+                className="mt-3 px-4 py-2 rounded-xl bg-accent text-bg-900 text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Upload size={13} className="inline mr-1.5" />{importing ? 'Importing...' : (importFile || importText.trim() ? 'Import questions' : 'Choose file or import')}
               </button>
             </div>
 

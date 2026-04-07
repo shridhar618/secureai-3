@@ -14,6 +14,7 @@ import re
 from datetime import datetime
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -75,6 +76,22 @@ def get_ai_response(messages: list[dict]) -> str:
 def list_mock_questions(role: str | None = None) -> list[dict]:
     question_bank = _filter_by_role(_load_question_bank(), role)
     return [serialize_question(item) for item in question_bank]
+
+
+def search_mock_questions(query: str, role: str | None = None, limit: int = 25) -> list[dict]:
+    query_text = " ".join(str(query or "").strip().lower().split())
+    if not query_text:
+        return list_mock_questions(role)[:limit]
+
+    ranked = []
+    for item in _filter_by_role(_load_question_bank(), role):
+        score = _score_question_search(item, query_text)
+        if score <= 0:
+            continue
+        ranked.append((score, item))
+
+    ranked.sort(key=lambda pair: (-pair[0], pair[1]["question"].lower()))
+    return [serialize_question(item) for _, item in ranked[:max(1, limit)]]
 
 
 def get_question(question_id: str) -> dict | None:
@@ -180,7 +197,9 @@ def import_mock_questions(entries: list[dict], actor: str | None = None) -> dict
         raise ValueError("Import payload must be a non-empty list")
 
     question_bank = _read_question_bank()
+    existing_questions = {str(item.get("question", "")).strip().lower() for item in question_bank}
     imported = []
+    skipped_duplicates = []
     for raw in entries:
         if not isinstance(raw, dict):
             raise ValueError("Each imported question must be an object")
@@ -192,6 +211,10 @@ def import_mock_questions(entries: list[dict], actor: str | None = None) -> dict
         allowed_roles = raw.get("allowed_roles", DEFAULT_ALLOWED_ROLES)
         if not question or not answer:
             raise ValueError("Each imported question must include question and answer")
+        normalized_question_key = question.lower()
+        if normalized_question_key in existing_questions:
+            skipped_duplicates.append(question)
+            continue
 
         entry = {
             "id": _build_unique_id(question, question_bank),
@@ -202,6 +225,7 @@ def import_mock_questions(entries: list[dict], actor: str | None = None) -> dict
             "answer": answer,
         }
         question_bank.append(entry)
+        existing_questions.add(normalized_question_key)
         imported.append(entry)
         _append_history("import", entry["id"], actor=actor, after=entry)
 
@@ -209,8 +233,25 @@ def import_mock_questions(entries: list[dict], actor: str | None = None) -> dict
     _clear_caches()
     return {
         "count": len(imported),
+        "skipped_duplicates": skipped_duplicates,
         "questions": [serialize_question(item) for item in imported],
     }
+
+
+def extract_questions_from_uploaded_file(filename: str, file_bytes: bytes) -> tuple[list[dict], dict]:
+    normalized_name = (filename or "").strip().lower()
+    if not normalized_name:
+        raise ValueError("Uploaded file must have a filename")
+
+    if normalized_name.endswith(".json"):
+        questions = _extract_questions_from_json_bytes(file_bytes)
+        return questions, {"source_type": "json", "detected_count": len(questions)}
+
+    if normalized_name.endswith(".pdf"):
+        questions, metadata = _extract_questions_from_pdf_bytes(file_bytes)
+        return questions, metadata
+
+    raise ValueError("Unsupported file type. Upload a .json or .pdf file")
 
 
 def export_mock_questions_csv(role: str | None = None) -> str:
@@ -505,6 +546,164 @@ def _write_question_bank(question_bank: list[dict]) -> None:
         file_obj.write("\n")
 
 
+def _extract_questions_from_json_bytes(file_bytes: bytes) -> list[dict]:
+    try:
+        payload = json.loads(file_bytes.decode("utf-8"))
+    except UnicodeDecodeError as exc:
+        raise ValueError("JSON file must be UTF-8 encoded") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError("JSON file is not valid JSON") from exc
+
+    if isinstance(payload, list):
+        entries = payload
+    elif isinstance(payload, dict) and isinstance(payload.get("questions"), list):
+        entries = payload["questions"]
+    else:
+        raise ValueError("JSON file must contain an array or an object with a 'questions' array")
+
+    if not entries:
+        raise ValueError("JSON file does not contain any questions")
+    return entries
+
+
+def _extract_questions_from_pdf_bytes(file_bytes: bytes) -> tuple[list[dict], dict]:
+    try:
+        from pypdf import PdfReader
+    except ImportError as exc:
+        raise ValueError("PDF import requires the 'pypdf' package to be installed") from exc
+
+    try:
+        reader = PdfReader(io.BytesIO(file_bytes))
+    except Exception as exc:
+        raise ValueError("Unable to read the uploaded PDF") from exc
+
+    pages = []
+    for page in reader.pages:
+        text = page.extract_text() or ""
+        if text.strip():
+            pages.append(text)
+
+    extracted_text = "\n\n".join(pages).strip()
+    if not extracted_text:
+        raise ValueError("Could not extract readable text from the PDF")
+
+    json_match = _extract_json_blob(extracted_text)
+    if json_match is not None:
+        return _extract_questions_from_json_bytes(json_match.encode("utf-8")), {
+            "source_type": "pdf",
+            "parse_mode": "embedded_json",
+            "page_count": len(reader.pages),
+        }
+
+    parsed = _parse_structured_pdf_text(extracted_text)
+    if not parsed:
+        raise ValueError(
+            "Could not detect question records in the PDF. Use labeled fields like 'Question:' and 'Answer:' or embed JSON."
+        )
+
+    return parsed, {
+        "source_type": "pdf",
+        "parse_mode": "labeled_text",
+        "page_count": len(reader.pages),
+        "detected_count": len(parsed),
+    }
+
+
+def _extract_json_blob(text: str) -> str | None:
+    start_positions = [index for index in (text.find("["), text.find("{")) if index != -1]
+    if not start_positions:
+        return None
+
+    decoder = json.JSONDecoder()
+    for start in sorted(start_positions):
+        try:
+            payload, end = decoder.raw_decode(text[start:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, list) or (isinstance(payload, dict) and isinstance(payload.get("questions"), list)):
+            return text[start:start + end]
+    return None
+
+
+def _parse_structured_pdf_text(text: str) -> list[dict]:
+    normalized_text = text.replace("\r\n", "\n")
+    blocks = [block.strip() for block in re.split(r"\n\s*\n", normalized_text) if block.strip()]
+    questions = []
+    current_block = []
+
+    for block in blocks:
+        if re.search(r"(?im)^(question|q)\s*:", block) and current_block:
+            parsed = _parse_question_block("\n\n".join(current_block))
+            if parsed:
+                questions.append(parsed)
+            current_block = [block]
+            continue
+        current_block.append(block)
+
+    if current_block:
+        parsed = _parse_question_block("\n\n".join(current_block))
+        if parsed:
+            questions.append(parsed)
+
+    return questions
+
+
+def _parse_question_block(block: str) -> dict | None:
+    lines = [line.strip() for line in block.splitlines() if line.strip()]
+    if not lines:
+        return None
+
+    fields: dict[str, Any] = {}
+    active_key = None
+    label_map = {
+        "question": "question",
+        "q": "question",
+        "answer": "answer",
+        "a": "answer",
+        "category": "category",
+        "keywords": "keywords",
+        "keyword": "keywords",
+        "allowed roles": "allowed_roles",
+        "roles": "allowed_roles",
+        "role": "allowed_roles",
+    }
+
+    for line in lines:
+        match = re.match(r"^(Question|Q|Answer|A|Category|Keywords?|Allowed Roles?|Roles?)\s*:\s*(.*)$", line, re.IGNORECASE)
+        if match:
+            active_key = label_map[match.group(1).strip().lower()]
+            value = match.group(2).strip()
+            if active_key in {"keywords", "allowed_roles"}:
+                fields[active_key] = _split_inline_list(value)
+            else:
+                fields[active_key] = value
+            continue
+
+        if active_key == "answer":
+            fields["answer"] = f"{fields.get('answer', '')}\n{line}".strip()
+        elif active_key == "question":
+            fields["question"] = f"{fields.get('question', '')} {line}".strip()
+        elif active_key in {"keywords", "allowed_roles"}:
+            fields[active_key] = fields.get(active_key, []) + _split_inline_list(line)
+
+    if not fields.get("question") or not fields.get("answer"):
+        return None
+
+    return {
+        "question": fields["question"],
+        "answer": fields["answer"],
+        "category": fields.get("category", "General"),
+        "keywords": fields.get("keywords", []),
+        "allowed_roles": fields.get("allowed_roles", DEFAULT_ALLOWED_ROLES),
+    }
+
+
+def _split_inline_list(value: str) -> list[str]:
+    if not value:
+        return []
+    return [item.strip() for item in re.split(r"[,;/]", value) if item.strip()]
+
+
 def _match_question(query: str, role: str | None = None) -> dict | None:
     query_text = (query or "").strip().lower()
     if not query_text:
@@ -515,6 +714,60 @@ def _match_question(query: str, role: str | None = None) -> dict | None:
         return ml_match
 
     return _match_question_with_heuristics(query_text, role)
+
+
+def _score_question_search(item: dict, query_text: str) -> int:
+    query_tokens = set(_extract_keywords(query_text))
+    if not query_tokens and not query_text:
+        return 0
+
+    question_text = item["question"].lower()
+    category_text = item["category"].lower()
+    answer_text = item["answer"].lower()
+    aliases = item.get("aliases", [])
+    score = 0
+
+    if query_text == question_text:
+        score += 100
+    elif query_text in question_text:
+        score += 40
+
+    if query_text == category_text:
+        score += 30
+    elif query_text in category_text:
+        score += 12
+
+    for keyword in item["keywords"]:
+        keyword_text = keyword.lower()
+        if query_text == keyword_text:
+            score += 50
+        elif _keyword_in_text(keyword_text, query_text) or _keyword_in_text(query_text, keyword_text):
+            score += 20
+
+    for alias in aliases:
+        alias_text = alias.lower()
+        if query_text == alias_text:
+            score += 35
+        elif query_text in alias_text or alias_text in query_text:
+            score += 18
+
+    question_tokens = set(_extract_keywords(question_text))
+    keyword_tokens = set()
+    for keyword in item["keywords"]:
+        keyword_tokens.update(_extract_keywords(keyword))
+    category_tokens = set(_extract_keywords(category_text))
+    alias_tokens = set()
+    for alias in aliases:
+        alias_tokens.update(_extract_keywords(alias))
+    answer_tokens = set(_extract_keywords(answer_text))
+
+    score += len(query_tokens & question_tokens) * 8
+    score += len(query_tokens & keyword_tokens) * 10
+    score += len(query_tokens & category_tokens) * 6
+    score += len(query_tokens & alias_tokens) * 6
+    score += min(3, len(query_tokens & answer_tokens)) * 2
+
+    return score
 
 
 def _build_contextual_query_candidates(messages: list[dict]) -> list[str]:
