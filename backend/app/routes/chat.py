@@ -32,9 +32,12 @@ from app.services.ai_service import (
     update_mock_question,
 )
 from app.services.knowledge_ingestion import (
+    approve_imported_knowledge_draft,
+    build_active_question_from_draft,
     append_imported_knowledge_drafts,
     get_imported_knowledge_draft,
     list_imported_knowledge_drafts,
+    reject_imported_knowledge_draft,
 )
 from app.services.governance import (
     SUSPICIOUS_QUERY_THRESHOLD,
@@ -300,6 +303,47 @@ def import_draft_detail(draft_id):
     draft = get_imported_knowledge_draft(draft_id)
     if not draft:
         return jsonify({"error": "Draft not found"}), 404
+
+    return jsonify({"draft": draft}), 200
+
+
+@chat_bp.route("/chat/questions/import-drafts/<draft_id>/approve", methods=["POST"])
+@jwt_required()
+def approve_import_draft(draft_id):
+    admin = _require_admin()
+    if not admin:
+        return jsonify({"error": "Admin access required"}), 403
+
+    try:
+        approved_question = import_mock_questions(
+            [build_active_question_from_draft(draft_id)],
+            actor=admin.username,
+        )
+        questions = approved_question.get("questions", [])
+        if len(questions) != 1:
+            raise ValueError("Draft could not be promoted into the active question bank")
+        draft = approve_imported_knowledge_draft(
+            draft_id,
+            reviewed_by=admin.username,
+            active_question_id=questions[0]["id"],
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify({"draft": draft, "question": questions[0]}), 200
+
+
+@chat_bp.route("/chat/questions/import-drafts/<draft_id>/reject", methods=["POST"])
+@jwt_required()
+def reject_import_draft(draft_id):
+    admin = _require_admin()
+    if not admin:
+        return jsonify({"error": "Admin access required"}), 403
+
+    try:
+        draft = reject_imported_knowledge_draft(draft_id, reviewed_by=admin.username)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
 
     return jsonify({"draft": draft}), 200
 

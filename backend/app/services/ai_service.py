@@ -106,6 +106,7 @@ def add_mock_question(
     answer: str,
     category: str = "General",
     keywords: list[str] | None = None,
+    aliases: list[str] | None = None,
     allowed_roles: list[str] | None = None,
     actor: str | None = None,
 ) -> dict:
@@ -125,6 +126,7 @@ def add_mock_question(
         "id": _build_unique_id(normalized_question, question_bank),
         "category": normalized_category,
         "question": normalized_question,
+        "aliases": _normalize_aliases(aliases or []),
         "keywords": normalized_keywords,
         "allowed_roles": normalized_roles,
         "answer": normalized_answer,
@@ -143,6 +145,7 @@ def update_mock_question(
     answer: str,
     category: str,
     keywords: list[str] | None = None,
+    aliases: list[str] | None = None,
     allowed_roles: list[str] | None = None,
     actor: str | None = None,
 ) -> dict:
@@ -156,6 +159,7 @@ def update_mock_question(
             "id": before["id"],
             "category": category.strip() or "General",
             "question": question.strip(),
+            "aliases": _normalize_aliases(aliases or before.get("aliases", [])),
             "keywords": _normalize_keywords(keywords or _extract_keywords(question)),
             "allowed_roles": _normalize_roles(allowed_roles),
             "answer": answer.strip(),
@@ -208,6 +212,7 @@ def import_mock_questions(entries: list[dict], actor: str | None = None) -> dict
         answer = str(raw.get("answer", "")).strip()
         category = str(raw.get("category", "General")).strip() or "General"
         keywords = raw.get("keywords", [])
+        aliases = raw.get("aliases", [])
         allowed_roles = raw.get("allowed_roles", DEFAULT_ALLOWED_ROLES)
         if not question or not answer:
             raise ValueError("Each imported question must include question and answer")
@@ -220,6 +225,7 @@ def import_mock_questions(entries: list[dict], actor: str | None = None) -> dict
             "id": _build_unique_id(question, question_bank),
             "category": category,
             "question": question,
+            "aliases": _normalize_aliases(aliases or []),
             "keywords": _normalize_keywords(keywords or _extract_keywords(question)),
             "allowed_roles": _normalize_roles(allowed_roles),
             "answer": answer,
@@ -427,6 +433,7 @@ def serialize_question(item: dict, *, include_answer: bool = False) -> dict:
         "id": item["id"],
         "category": item["category"],
         "question": item["question"],
+        "aliases": item.get("aliases", []),
         "keywords": item["keywords"],
         "allowed_roles": item["allowed_roles"],
     }
