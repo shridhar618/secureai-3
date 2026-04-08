@@ -20,6 +20,8 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from app.services.pdf_draft_transform import transform_pdf_text_to_candidate_entries
+
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
@@ -603,16 +605,19 @@ def _extract_questions_from_pdf_bytes(file_bytes: bytes) -> tuple[list[dict], di
         }
 
     parsed = _parse_structured_pdf_text(extracted_text)
-    if not parsed:
-        raise ValueError(
-            "Could not detect question records in the PDF. Use labeled fields like 'Question:' and 'Answer:' or embed JSON."
-        )
+    if parsed:
+        return parsed, {
+            "source_type": "pdf",
+            "parse_mode": "labeled_text",
+            "page_count": len(reader.pages),
+            "detected_count": len(parsed),
+        }
 
-    return parsed, {
+    transformed, metadata = transform_pdf_text_to_candidate_entries(extracted_text)
+    return transformed, {
         "source_type": "pdf",
-        "parse_mode": "labeled_text",
         "page_count": len(reader.pages),
-        "detected_count": len(parsed),
+        **metadata,
     }
 
 
