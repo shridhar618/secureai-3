@@ -709,6 +709,11 @@ def _match_question(query: str, role: str | None = None) -> dict | None:
     if not query_text:
         return None
 
+    # If the prompt exactly names a restricted question or alias, do not fall
+    # through to a fuzzy match on some other allowed item for this role.
+    if _has_restricted_exact_match(query_text, role):
+        return None
+
     ml_match = _match_question_with_ml(query_text, role)
     if ml_match:
         return ml_match
@@ -887,6 +892,20 @@ def _match_question_with_heuristics(query_text: str, role: str | None = None) ->
             best_match = item
 
     return best_match if best_score >= _HEURISTIC_MATCH_THRESHOLD else None
+
+
+def _has_restricted_exact_match(query_text: str, role: str | None = None) -> bool:
+    if not role:
+        return False
+
+    for item in _load_question_bank():
+        if role in item["allowed_roles"]:
+            continue
+        if query_text == item["question"].lower():
+            return True
+        if any(query_text == alias.lower() for alias in item.get("aliases", [])):
+            return True
+    return False
 
 
 def _filter_by_role(question_bank: list[dict], role: str | None) -> list[dict]:
