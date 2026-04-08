@@ -15,7 +15,12 @@
       "hey",
       "greeting"
     ],
-    "answer": "Hello! I'm SecureAI, your enterprise assistant. Ask me anything about company policies, teams, HR, IT, security, or operations."
+    "answer": "Hello! I'm SecureAI, your enterprise assistant. Ask me anything about company policies, teams, HR, IT, security, or operations.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "help-capabilities",
@@ -34,7 +39,12 @@
       "assist",
       "answer"
     ],
-    "answer": "I can help with company policies, HR processes, onboarding, security practices, IT support topics, finance workflows, workplace operations, and general company information stored in the dataset."
+    "answer": "I can help with company policies, HR processes, onboarding, security practices, IT support topics, finance workflows, workplace operations, and general company information stored in the dataset.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "company-overview",
@@ -53,7 +63,12 @@
       "services",
       "mission"
     ],
-    "answer": "The company focuses on secure enterprise AI solutions, internal governance, and workplace automation. It supports teams with policy-aware assistance, operational workflows, and secure handling of sensitive information."
+    "answer": "The company focuses on secure enterprise AI solutions, internal governance, and workplace automation. It supports teams with policy-aware assistance, operational workflows, and secure handling of sensitive information.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "company-mission",
@@ -71,7 +86,12 @@
       "purpose",
       "goals"
     ],
-    "answer": "Our mission is to help teams use AI productively and responsibly through secure systems, clear governance, and practical support for day-to-day work."
+    "answer": "Our mission is to help teams use AI productively and responsibly through secure systems, clear governance, and practical support for day-to-day work.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "manager-info",
@@ -89,7 +109,12 @@
       "lead",
       "supervisor"
     ],
-    "answer": "The recorded manager name in this dataset is Shridhar Bhat. If you need a meeting, contact the office coordinator and request an appointment instead of walking in without confirmation."
+    "answer": "The recorded manager name in this dataset is Shridhar Bhat. If you need a meeting, contact the office coordinator and request an appointment instead of walking in without confirmation.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "org-structure",
@@ -107,7 +132,12 @@
       "departments",
       "teams"
     ],
-    "answer": "The company is organized into functions such as Engineering, HR, Security, IT, Finance, Operations, and Admin. Teams collaborate through defined managers, shared goals, and cross-functional project work."
+    "answer": "The company is organized into functions such as Engineering, HR, Security, IT, Finance, Operations, and Admin. Teams collaborate through defined managers, shared goals, and cross-functional project work.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "office-hours",
@@ -125,7 +155,12 @@
       "working hours",
       "schedule"
     ],
-    "answer": "Standard office hours are 9:30 AM to 6:30 PM on business days, unless your team follows an approved shift or flexible schedule."
+    "answer": "Standard office hours are 9:30 AM to 6:30 PM on business days, unless your team follows an approved shift or flexible schedule.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "office-location",
@@ -143,7 +178,12 @@
       "address",
       "campus"
     ],
-    "answer": "Employees should use the office location listed in the official directory or onboarding documents. If you need a specific floor, seat, or visitor instructions, check with workplace operations."
+    "answer": "Employees should use the office location listed in the official directory or onboarding documents. If you need a specific floor, seat, or visitor instructions, check with workplace operations.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "meeting-room-booking",
@@ -161,7 +201,12 @@
       "book room",
       "reserve room"
     ],
-    "answer": "Meeting rooms can be reserved through the workplace calendar system. Include the purpose, attendees, and any audio or video requirements when you book."
+    "answer": "Meeting rooms can be reserved through the workplace calendar system. Include the purpose, attendees, and any audio or video requirements when you book.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "visitor-policy",
@@ -179,7 +224,12 @@
       "entry",
       "reception"
     ],
-    "answer": "Visitors should be pre-registered, signed in at reception, and escorted according to workplace security rules. Share visitor details in advance when possible."
+    "answer": "Visitors should be pre-registered, signed in at reception, and escorted according to workplace security rules. Share visitor details in advance when possible.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "travel-policy",
@@ -197,7 +247,12 @@
       "flight booking",
       "hotel booking"
     ],
-    "answer": "Business travel should be pre-approved by your manager, booked through approved channels, and aligned with the company travel and reimbursement rules."
+    "answer": "Business travel should be pre-approved by your manager, booked through approved channels, and aligned with the company travel and reimbursement rules.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "leave-policy",
@@ -215,7 +270,12 @@
       "time off",
       "pto"
     ],
-    "answer": "Employees are entitled to 20 days of annual leave, 10 days of sick leave, and flexible work-from-home options per quarter, subject to manager approval and workload planning."
+    "answer": "Employees are entitled to 20 days of annual leave, 10 days of sick leave, and flexible work-from-home options per quarter, subject to manager approval and workload planning.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "sick-leave-process",
@@ -233,7 +293,12 @@
       "leave request",
       "illness"
     ],
-    "answer": "Inform your manager as early as possible and submit the leave request through the HR system. For longer absences, HR may request supporting medical documentation."
+    "answer": "Inform your manager as early as possible and submit the leave request through the HR system. For longer absences, HR may request supporting medical documentation.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "holiday-calendar",
@@ -251,7 +316,12 @@
       "public holiday",
       "festival holiday"
     ],
-    "answer": "The holiday calendar is published by HR at the start of the year. Use the latest HR notice or employee portal for the final list that applies to your location."
+    "answer": "The holiday calendar is published by HR at the start of the year. Use the latest HR notice or employee portal for the final list that applies to your location.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "remote-work-policy",
@@ -269,7 +339,12 @@
       "hybrid",
       "wfh"
     ],
-    "answer": "Employees may work remotely based on team requirements and manager approval. Most teams follow a hybrid model with designated collaboration days."
+    "answer": "Employees may work remotely based on team requirements and manager approval. Most teams follow a hybrid model with designated collaboration days.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "attendance-policy",
@@ -287,7 +362,12 @@
       "presence",
       "check in"
     ],
-    "answer": "Attendance is tracked through the approved workplace system. Employees are expected to follow team hours, mark attendance accurately, and communicate delays or absences promptly."
+    "answer": "Attendance is tracked through the approved workplace system. Employees are expected to follow team hours, mark attendance accurately, and communicate delays or absences promptly.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "onboarding-process",
@@ -305,7 +385,12 @@
       "orientation",
       "training"
     ],
-    "answer": "Onboarding includes IT setup on Day 1, HR orientation on Days 1 and 2, team-specific training during Week 1, and an early check-in with the manager during the first month."
+    "answer": "Onboarding includes IT setup on Day 1, HR orientation on Days 1 and 2, team-specific training during Week 1, and an early check-in with the manager during the first month.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "probation-policy",
@@ -323,7 +408,12 @@
       "new joiner",
       "review period"
     ],
-    "answer": "New employees usually complete a probation period defined in their offer or HR policy documents. Performance, conduct, and role readiness are reviewed before confirmation."
+    "answer": "New employees usually complete a probation period defined in their offer or HR policy documents. Performance, conduct, and role readiness are reviewed before confirmation.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "performance-reviews",
@@ -341,7 +431,12 @@
       "goals",
       "evaluation"
     ],
-    "answer": "Performance reviews are conducted twice a year. Goals are aligned early in the cycle, progress is reviewed mid-cycle, and final evaluations are completed at the end of the review period."
+    "answer": "Performance reviews are conducted twice a year. Goals are aligned early in the cycle, progress is reviewed mid-cycle, and final evaluations are completed at the end of the review period.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "career-development",
@@ -359,7 +454,12 @@
       "learning",
       "promotion"
     ],
-    "answer": "Career development is supported through goal setting, manager coaching, internal mobility, learning resources, and regular growth conversations."
+    "answer": "Career development is supported through goal setting, manager coaching, internal mobility, learning resources, and regular growth conversations.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "benefits-enrollment",
@@ -377,7 +477,12 @@
       "insurance",
       "open enrollment"
     ],
-    "answer": "Employees can usually enroll during onboarding, qualifying life events, or the annual open enrollment period announced by HR."
+    "answer": "Employees can usually enroll during onboarding, qualifying life events, or the annual open enrollment period announced by HR.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "notice-period",
@@ -395,7 +500,12 @@
       "exit",
       "separation"
     ],
-    "answer": "Notice period requirements depend on your employment terms and role. Employees should review their offer letter or HR policy and coordinate any exit plan with HR and their manager."
+    "answer": "Notice period requirements depend on your employment terms and role. Employees should review their offer letter or HR policy and coordinate any exit plan with HR and their manager.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "code-of-conduct",
@@ -413,7 +523,12 @@
       "ethics",
       "harassment"
     ],
-    "answer": "The code of conduct covers respectful workplace behavior, anti-harassment expectations, ethical decision-making, compliance obligations, and reporting channels."
+    "answer": "The code of conduct covers respectful workplace behavior, anti-harassment expectations, ethical decision-making, compliance obligations, and reporting channels.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "document-retention",
@@ -431,7 +546,12 @@
       "retention policy",
       "archive"
     ],
-    "answer": "Document retention depends on the record type and applicable legal or business requirements. Teams should follow the official retention schedule before archiving or deleting files."
+    "answer": "Document retention depends on the record type and applicable legal or business requirements. Teams should follow the official retention schedule before archiving or deleting files.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "privacy-handling",
@@ -449,7 +569,12 @@
       "personal data",
       "data handling"
     ],
-    "answer": "Personal data should only be accessed for legitimate business purposes, shared on a need-to-know basis, and stored or transmitted using approved secure systems."
+    "answer": "Personal data should only be accessed for legitimate business purposes, shared on a need-to-know basis, and stored or transmitted using approved secure systems.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "security-protocols",
@@ -468,7 +593,12 @@
       "zero trust",
       "encryption"
     ],
-    "answer": "The security framework includes zero-trust principles, multi-factor authentication, encryption at rest and in transit, least-privilege access, and periodic security reviews."
+    "answer": "The security framework includes zero-trust principles, multi-factor authentication, encryption at rest and in transit, least-privilege access, and periodic security reviews.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "password-reset",
@@ -486,7 +616,12 @@
       "password help",
       "login issue"
     ],
-    "answer": "Use the self-service password reset page and complete MFA verification. If you cannot complete the reset flow, contact IT support for identity verification."
+    "answer": "Use the self-service password reset page and complete MFA verification. If you cannot complete the reset flow, contact IT support for identity verification.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "vpn-access",
@@ -504,7 +639,12 @@
       "network access",
       "secure connection"
     ],
-    "answer": "Install the approved VPN client, sign in with company credentials, and complete MFA. If your access has not been provisioned, raise a request with IT."
+    "answer": "Install the approved VPN client, sign in with company credentials, and complete MFA. If your access has not been provisioned, raise a request with IT.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "software-access",
@@ -522,7 +662,12 @@
       "system access",
       "approval"
     ],
-    "answer": "Submit an access request through the IT or service portal with the business reason, manager approval if required, and the access level you need."
+    "answer": "Submit an access request through the IT or service portal with the business reason, manager approval if required, and the access level you need.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "it-support",
@@ -540,7 +685,12 @@
       "technical issue",
       "ticket"
     ],
-    "answer": "You can contact IT support through the helpdesk portal or the shared support channel. Include your device details, screenshots, and the business impact for faster help."
+    "answer": "You can contact IT support through the helpdesk portal or the shared support channel. Include your device details, screenshots, and the business impact for faster help.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "device-policy",
@@ -558,7 +708,12 @@
       "endpoint",
       "personal device"
     ],
-    "answer": "Company work should be done on approved and managed devices whenever required by policy. Security controls, updates, and asset handling rules apply to all official devices."
+    "answer": "Company work should be done on approved and managed devices whenever required by policy. Security controls, updates, and asset handling rules apply to all official devices.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "data-classification",
@@ -577,7 +732,12 @@
       "public",
       "restricted"
     ],
-    "answer": "Company data is generally classified as Public, Internal, Confidential, or Restricted. More sensitive levels require tighter access controls, storage limits, and sharing restrictions."
+    "answer": "Company data is generally classified as Public, Internal, Confidential, or Restricted. More sensitive levels require tighter access controls, storage limits, and sharing restrictions.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "report-phishing",
@@ -595,7 +755,12 @@
       "report email",
       "malicious email"
     ],
-    "answer": "Do not click any links or open attachments. Report the message using the phishing reporting option in email or forward it to the security team for review."
+    "answer": "Do not click any links or open attachments. Report the message using the phishing reporting option in email or forward it to the security team for review.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "incident-response",
@@ -613,7 +778,12 @@
       "incident response",
       "report incident"
     ],
-    "answer": "Immediately report the incident to the security team, preserve relevant evidence, avoid altering affected systems, and follow the incident response playbook."
+    "answer": "Immediately report the incident to the security team, preserve relevant evidence, avoid altering affected systems, and follow the incident response playbook.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "mfa-policy",
@@ -631,7 +801,12 @@
       "authentication",
       "security login"
     ],
-    "answer": "Yes. Multi-factor authentication is required for supported company systems, especially for remote access, email, admin tools, and other sensitive applications."
+    "answer": "Yes. Multi-factor authentication is required for supported company systems, especially for remote access, email, admin tools, and other sensitive applications.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "expense-reimbursement",
@@ -649,7 +824,12 @@
       "travel claim",
       "receipts"
     ],
-    "answer": "Expense claims should be submitted through the finance portal with receipts attached. Approved claims are usually reimbursed in the next payroll cycle."
+    "answer": "Expense claims should be submitted through the finance portal with receipts attached. Approved claims are usually reimbursed in the next payroll cycle.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "payroll-schedule",
@@ -667,7 +847,12 @@
       "payday",
       "compensation"
     ],
-    "answer": "Payroll is processed on the regular monthly payroll cycle defined by Finance. If there is a holiday impact or banking delay, Finance shares an announcement in advance."
+    "answer": "Payroll is processed on the regular monthly payroll cycle defined by Finance. If there is a holiday impact or banking delay, Finance shares an announcement in advance.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "payslip-access",
@@ -685,7 +870,12 @@
       "pay statement",
       "payroll portal"
     ],
-    "answer": "Payslips are available in the payroll or employee self-service portal after payroll is processed. Contact Finance or HR if a payslip is missing."
+    "answer": "Payslips are available in the payroll or employee self-service portal after payroll is processed. Contact Finance or HR if a payslip is missing.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "procurement-policy",
@@ -703,7 +893,12 @@
       "approval",
       "vendor"
     ],
-    "answer": "Submit the purchase request through the approved procurement workflow with business justification, budget details, vendor information, and the required approvals."
+    "answer": "Submit the purchase request through the approved procurement workflow with business justification, budget details, vendor information, and the required approvals.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "manager-escalation",
@@ -721,7 +916,12 @@
       "roadblock",
       "escalation"
     ],
-    "answer": "Summarize the blocker, the impact, the options already tried, and the decision needed. Share that context with your manager early so the next step is clear."
+    "answer": "Summarize the blocker, the impact, the options already tried, and the decision needed. Share that context with your manager early so the next step is clear.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "training-policy",
@@ -739,7 +939,12 @@
       "learning",
       "development"
     ],
-    "answer": "Teams can support relevant training and certifications based on business need, manager approval, and available budget. Check with your manager or HR for the current process."
+    "answer": "Teams can support relevant training and certifications based on business need, manager approval, and available budget. Check with your manager or HR for the current process.",
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ]
   },
   {
     "id": "hr-benefits-approval",
@@ -783,7 +988,3 @@
     "answer": "Admins can export audit activity from the dashboard export action to share governance evidence with compliance, audit, or leadership stakeholders."
   }
 ]
-
-
-
-

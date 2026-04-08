@@ -32,8 +32,12 @@ from app.services.ai_service import (
     update_mock_question,
 )
 from app.services.knowledge_ingestion import (
+    approve_imported_knowledge_draft,
+    build_active_question_from_draft,
     append_imported_knowledge_drafts,
+    get_imported_knowledge_draft,
     list_imported_knowledge_drafts,
+    reject_imported_knowledge_draft,
 )
 from app.services.governance import (
     SUSPICIOUS_QUERY_THRESHOLD,
@@ -148,7 +152,16 @@ def get_question_bank():
         if user.role == "admin":
             full_question = get_question(item["id"])
             if full_question:
-                item["answer"] = full_question["answer"]
+                item.update({
+                    "answer": full_question["answer"],
+                    "source_type": full_question.get("source_type"),
+                    "source_name": full_question.get("source_name"),
+                    "source_pages": full_question.get("source_pages"),
+                    "imported_at": full_question.get("imported_at"),
+                    "imported_by": full_question.get("imported_by"),
+                    "source_excerpt": full_question.get("source_excerpt"),
+                    "access_rationale": full_question.get("access_rationale"),
+                })
         item["is_favorite"] = item["id"] in favorite_ids
         questions.append(item)
     return jsonify({"questions": questions}), 200
@@ -171,7 +184,16 @@ def search_question_bank():
         if user.role == "admin":
             full_question = get_question(item["id"])
             if full_question:
-                item["answer"] = full_question["answer"]
+                item.update({
+                    "answer": full_question["answer"],
+                    "source_type": full_question.get("source_type"),
+                    "source_name": full_question.get("source_name"),
+                    "source_pages": full_question.get("source_pages"),
+                    "imported_at": full_question.get("imported_at"),
+                    "imported_by": full_question.get("imported_by"),
+                    "source_excerpt": full_question.get("source_excerpt"),
+                    "access_rationale": full_question.get("access_rationale"),
+                })
         item["is_favorite"] = item["id"] in favorite_ids
         questions.append(item)
     return jsonify({"questions": questions, "query": query}), 200
@@ -256,6 +278,8 @@ def import_questions():
                     entries,
                     source_type="pdf",
                     source_name=file_obj.filename,
+                    source_pages=metadata.get("source_pages", []),
+                    imported_by=admin.username,
                 )
                 result = {
                     "count": len(drafts),
@@ -278,13 +302,70 @@ def import_questions():
 @chat_bp.route("/chat/questions/import-drafts", methods=["GET"])
 @jwt_required()
 def import_drafts():
+    if not _require_admin():
+        return jsonify({"error": "Admin access required"}), 403
+
+    review_status = request.args.get("review_status", "").strip() or None
+    drafts = list_imported_knowledge_drafts(review_status)
+    return jsonify({
+        "drafts": drafts,
+        "count": len(drafts),
+        "review_status": review_status,
+    }), 200
+
+
+@chat_bp.route("/chat/questions/import-drafts/<draft_id>", methods=["GET"])
+@jwt_required()
+def import_draft_detail(draft_id):
+    if not _require_admin():
+        return jsonify({"error": "Admin access required"}), 403
+
+    draft = get_imported_knowledge_draft(draft_id)
+    if not draft:
+        return jsonify({"error": "Draft not found"}), 404
+
+    return jsonify({"draft": draft}), 200
+
+
+@chat_bp.route("/chat/questions/import-drafts/<draft_id>/approve", methods=["POST"])
+@jwt_required()
+def approve_import_draft(draft_id):
     admin = _require_admin()
     if not admin:
         return jsonify({"error": "Admin access required"}), 403
 
-    return jsonify({
-        "drafts": list_imported_knowledge_drafts(request.args.get("review_status")),
-    }), 200
+    try:
+        approved_question = import_mock_questions(
+            [build_active_question_from_draft(draft_id)],
+            actor=admin.username,
+        )
+        questions = approved_question.get("questions", [])
+        if len(questions) != 1:
+            raise ValueError("Draft could not be promoted into the active question bank")
+        draft = approve_imported_knowledge_draft(
+            draft_id,
+            reviewed_by=admin.username,
+            active_question_id=questions[0]["id"],
+        )
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify({"draft": draft, "question": questions[0]}), 200
+
+
+@chat_bp.route("/chat/questions/import-drafts/<draft_id>/reject", methods=["POST"])
+@jwt_required()
+def reject_import_draft(draft_id):
+    admin = _require_admin()
+    if not admin:
+        return jsonify({"error": "Admin access required"}), 403
+
+    try:
+        draft = reject_imported_knowledge_draft(draft_id, reviewed_by=admin.username)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify({"draft": draft}), 200
 
 
 @chat_bp.route("/chat/questions/export", methods=["GET"])
