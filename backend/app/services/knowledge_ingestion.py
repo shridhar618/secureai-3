@@ -7,6 +7,7 @@ from uuid import uuid4
 BASE_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 IMPORT_DRAFTS_PATH = BASE_DATA_DIR / "imported_knowledge_drafts.json"
 DEFAULT_ALLOWED_ROLES = ["admin", "hr", "intern"]
+DEFAULT_REVIEW_STATUS = "draft"
 
 
 def list_imported_knowledge_drafts(review_status: str | None = None) -> list[dict]:
@@ -14,7 +15,37 @@ def list_imported_knowledge_drafts(review_status: str | None = None) -> list[dic
     if review_status:
         drafts = [item for item in drafts if item.get("review_status") == review_status]
     drafts.sort(key=lambda item: item.get("imported_at", ""), reverse=True)
-    return drafts
+    return [serialize_imported_knowledge_draft(item) for item in drafts]
+
+
+def get_imported_knowledge_draft(draft_id: str) -> dict | None:
+    for item in _read_drafts():
+        if str(item.get("id", "")).strip() == draft_id:
+            return serialize_imported_knowledge_draft(item)
+    return None
+
+
+def serialize_imported_knowledge_draft(item: dict) -> dict:
+    source_type = str(item.get("source_type", "import")).strip().lower() or "import"
+    source_name = str(item.get("source_name", "")).strip()
+
+    return {
+        "id": str(item.get("id", "")).strip(),
+        "question": str(item.get("question", "")).strip(),
+        "answer": str(item.get("answer", "")).strip(),
+        "category": str(item.get("category", "General")).strip() or "General",
+        "keywords": _normalize_string_list(item.get("keywords", [])),
+        "aliases": _normalize_string_list(item.get("aliases", [])),
+        "allowed_roles": _normalize_roles(item.get("allowed_roles", DEFAULT_ALLOWED_ROLES)),
+        "source_type": source_type,
+        "source_name": source_name,
+        "review_status": str(item.get("review_status", DEFAULT_REVIEW_STATUS)).strip() or DEFAULT_REVIEW_STATUS,
+        "imported_at": str(item.get("imported_at", "")).strip(),
+        "source": {
+            "type": source_type,
+            "name": source_name,
+        },
+    }
 
 
 def append_imported_knowledge_drafts(
@@ -51,11 +82,11 @@ def append_imported_knowledge_drafts(
             "allowed_roles": _normalize_roles(raw.get("allowed_roles", DEFAULT_ALLOWED_ROLES)),
             "source_type": normalized_source_type,
             "source_name": normalized_source_name,
-            "review_status": "draft",
+            "review_status": DEFAULT_REVIEW_STATUS,
             "imported_at": imported_at,
         }
         drafts.append(draft)
-        appended.append(draft)
+        appended.append(serialize_imported_knowledge_draft(draft))
 
     _write_drafts(drafts)
     return appended

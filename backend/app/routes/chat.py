@@ -33,6 +33,7 @@ from app.services.ai_service import (
 )
 from app.services.knowledge_ingestion import (
     append_imported_knowledge_drafts,
+    get_imported_knowledge_draft,
     list_imported_knowledge_drafts,
 )
 from app.services.governance import (
@@ -278,13 +279,29 @@ def import_questions():
 @chat_bp.route("/chat/questions/import-drafts", methods=["GET"])
 @jwt_required()
 def import_drafts():
-    admin = _require_admin()
-    if not admin:
+    if not _require_admin():
         return jsonify({"error": "Admin access required"}), 403
 
+    review_status = request.args.get("review_status", "").strip() or None
+    drafts = list_imported_knowledge_drafts(review_status)
     return jsonify({
-        "drafts": list_imported_knowledge_drafts(request.args.get("review_status")),
+        "drafts": drafts,
+        "count": len(drafts),
+        "review_status": review_status,
     }), 200
+
+
+@chat_bp.route("/chat/questions/import-drafts/<draft_id>", methods=["GET"])
+@jwt_required()
+def import_draft_detail(draft_id):
+    if not _require_admin():
+        return jsonify({"error": "Admin access required"}), 403
+
+    draft = get_imported_knowledge_draft(draft_id)
+    if not draft:
+        return jsonify({"error": "Draft not found"}), 404
+
+    return jsonify({"draft": draft}), 200
 
 
 @chat_bp.route("/chat/questions/export", methods=["GET"])
