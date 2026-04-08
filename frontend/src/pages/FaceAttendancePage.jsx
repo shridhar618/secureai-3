@@ -23,7 +23,7 @@ function StatusCard({ title, value, tone = 'default' }) {
 }
 
 export default function FaceAttendancePage() {
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const videoRef = useRef(null)
   const canvasRef = useRef(null)
   const streamRef = useRef(null)
@@ -38,6 +38,7 @@ export default function FaceAttendancePage() {
   const [teamRecords, setTeamRecords] = useState([])
 
   const isAdminOrHr = useMemo(() => user?.role === 'admin' || user?.role === 'hr', [user?.role])
+  const hasFaceProfile = Boolean(user?.has_face_profile)
 
   useEffect(() => {
     let mounted = true
@@ -129,13 +130,19 @@ export default function FaceAttendancePage() {
       const res = await api.post(endpoint, { image_base64: imageBase64 })
       const record = res.data.record || null
       if (record) setLastEvent(record)
+      if (endpoint === '/face/register') {
+        await refreshUser()
+      }
       setStatusTone('success')
       setStatusMessage(res.data.message || 'Done')
       await loadMyAttendance()
       await loadTeamAttendance()
     } catch (err) {
-      setStatusTone('danger')
+      setStatusTone(err?.response?.status === 409 ? 'warn' : 'danger')
       setStatusMessage(err?.response?.data?.error || 'Face recognition request failed.')
+      if (err?.response?.data?.record) {
+        setLastEvent(err.response.data.record)
+      }
     } finally {
       setBusy(false)
     }
@@ -148,7 +155,7 @@ export default function FaceAttendancePage() {
           <div>
             <h1 className="text-xl font-bold text-white">Face Attendance</h1>
             <p className="text-[10px] text-slate-500 font-mono mt-0.5 tracking-widest uppercase">
-              Register your face and mark check-in/check-out
+              {hasFaceProfile ? 'Use your registered face to mark attendance once per day' : 'Register your face once to start daily attendance'}
             </p>
           </div>
           <button
@@ -177,18 +184,20 @@ export default function FaceAttendancePage() {
             {cameraError && <p className="mt-3 text-xs text-danger">{cameraError}</p>}
 
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <button
-                onClick={() => callFaceApi('/face/register')}
-                disabled={busy || !cameraReady}
-                className="px-4 py-3 rounded-xl border border-accent/30 bg-accent/10 text-accent font-semibold hover:bg-accent/20 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ScanFace size={15} className="inline mr-2" />
-                Register My Face
-              </button>
+              {!hasFaceProfile && (
+                <button
+                  onClick={() => callFaceApi('/face/register')}
+                  disabled={busy || !cameraReady}
+                  className="px-4 py-3 rounded-xl border border-accent/30 bg-accent/10 text-accent font-semibold hover:bg-accent/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ScanFace size={15} className="inline mr-2" />
+                  Register My Face
+                </button>
+              )}
               <button
                 onClick={() => callFaceApi('/attendance/mark')}
                 disabled={busy || !cameraReady}
-                className="px-4 py-3 rounded-xl border border-success/30 bg-success/10 text-success font-semibold hover:bg-success/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`px-4 py-3 rounded-xl border border-success/30 bg-success/10 text-success font-semibold hover:bg-success/20 disabled:opacity-50 disabled:cursor-not-allowed ${hasFaceProfile ? '' : 'sm:col-span-2'}`}
               >
                 <UserCheck size={15} className="inline mr-2" />
                 Mark Attendance
@@ -199,6 +208,7 @@ export default function FaceAttendancePage() {
           <div className="glass rounded-2xl p-5 border border-white/5 space-y-3">
             <p className="text-sm font-bold text-white">Face Scan Status</p>
             <StatusCard title="User" value={`${user?.username || '-'} (${user?.role || '-'})`} />
+            <StatusCard title="Face Profile" value={hasFaceProfile ? 'Registered' : 'Not registered'} tone={hasFaceProfile ? 'success' : 'warn'} />
             <StatusCard title="Result" value={statusMessage || 'No action yet'} tone={statusTone} />
             <StatusCard
               title="Last Attendance Event"

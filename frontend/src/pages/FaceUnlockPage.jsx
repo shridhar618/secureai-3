@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
 
 export default function FaceUnlockPage() {
-  const { faceVerified, markFaceVerified } = useAuth()
+  const { user, faceVerified, markFaceVerified, refreshUser } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const videoRef = useRef(null)
@@ -17,9 +17,11 @@ export default function FaceUnlockPage() {
   const [cameraReady, setCameraReady] = useState(false)
   const [cameraError, setCameraError] = useState('')
   const [error, setError] = useState('')
+  const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(false)
 
   const targetPath = location.state?.from || '/welcome'
+  const hasFaceProfile = Boolean(user?.has_face_profile)
 
   useEffect(() => {
     if (faceVerified) navigate(targetPath, { replace: true })
@@ -69,6 +71,7 @@ export default function FaceUnlockPage() {
 
   const verifyFace = async () => {
     setError('')
+    setStatus('')
     const imageBase64 = captureFrame()
     if (!imageBase64) {
       setError('Could not capture your face. Please retry.')
@@ -88,6 +91,7 @@ export default function FaceUnlockPage() {
 
   const registerFace = async () => {
     setError('')
+    setStatus('')
     const imageBase64 = captureFrame()
     if (!imageBase64) {
       setError('Could not capture your face. Please retry.')
@@ -96,7 +100,8 @@ export default function FaceUnlockPage() {
     setLoading(true)
     try {
       await api.post('/face/register', { image_base64: imageBase64 })
-      setError('')
+      await refreshUser()
+      setStatus('Face registered successfully. Use Unlock With Face from now on.')
     } catch (err) {
       setError(err?.response?.data?.error || 'Face registration failed.')
     } finally {
@@ -139,6 +144,12 @@ export default function FaceUnlockPage() {
             {error}
           </div>
         )}
+        {status && (
+          <div className="mt-3 flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/20 text-success text-sm">
+            <ScanFace size={14} />
+            {status}
+          </div>
+        )}
 
         <div className="mt-4 flex flex-wrap gap-3">
           <motion.button
@@ -151,14 +162,16 @@ export default function FaceUnlockPage() {
             <ScanFace size={15} className="inline mr-2" />
             {loading ? 'Verifying...' : 'Unlock With Face'}
           </motion.button>
-          <button
-            onClick={registerFace}
-            disabled={!cameraReady || loading}
-            className="px-4 py-3 rounded-xl border border-white/10 text-slate-300 hover:text-accent text-sm font-medium"
-          >
-            <Camera size={14} className="inline mr-1.5" />
-            Register Face First
-          </button>
+          {!hasFaceProfile && (
+            <button
+              onClick={registerFace}
+              disabled={!cameraReady || loading}
+              className="px-4 py-3 rounded-xl border border-white/10 text-slate-300 hover:text-accent text-sm font-medium"
+            >
+              <Camera size={14} className="inline mr-1.5" />
+              Register Face First
+            </button>
+          )}
         </div>
       </motion.div>
     </div>

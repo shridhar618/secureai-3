@@ -9,17 +9,22 @@ export function AuthProvider({ children }) {
   const [faceVerified, setFaceVerified] = useState(() => sessionStorage.getItem('face_verified') === '1')
   const [loading, setLoading] = useState(true)
 
+  const refreshUser = useCallback(async () => {
+    const res = await api.get('/auth/me')
+    setUser(res.data.user)
+    return res.data.user
+  }, [])
+
   useEffect(() => {
     if (token) {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`
-      api.get('/auth/me')
-        .then(res => setUser(res.data.user))
+      refreshUser()
         .catch(() => { setToken(null); localStorage.removeItem('token') })
         .finally(() => setLoading(false))
     } else {
       setLoading(false)
     }
-  }, [token])
+  }, [refreshUser, token])
 
   const login = useCallback(async (username, password) => {
     const res = await api.post('/auth/login', { username, password })
@@ -60,7 +65,7 @@ export function AuthProvider({ children }) {
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, faceVerified, markFaceVerified, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, faceVerified, markFaceVerified, login, register, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   )

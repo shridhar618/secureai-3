@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
@@ -11,9 +11,8 @@ import QuestionBankPage from './pages/QuestionBankPage'
 import FaceAttendancePage from './pages/FaceAttendancePage'
 import FaceUnlockPage from './pages/FaceUnlockPage'
 
-function ProtectedRoute({ children, adminOnly = false, allowWithoutFace = false }) {
-  const { user, loading, faceVerified } = useAuth()
-  const location = useLocation()
+function ProtectedRoute({ children, adminOnly = false }) {
+  const { user, loading } = useAuth()
   if (loading) return (
     <div className="flex h-full items-center justify-center bg-bg-900">
       <div className="flex gap-2">
@@ -24,9 +23,6 @@ function ProtectedRoute({ children, adminOnly = false, allowWithoutFace = false 
     </div>
   )
   if (!user) return <Navigate to="/login" replace />
-  if (!allowWithoutFace && !faceVerified) {
-    return <Navigate to="/face-unlock" replace state={{ from: location.pathname }} />
-  }
   if (adminOnly && user.role !== 'admin') return <Navigate to="/chat" replace />
   return children
 }
@@ -46,7 +42,7 @@ function AppRoutes() {
         </ProtectedRoute>
       } />
       <Route path="/face-unlock" element={
-        <ProtectedRoute allowWithoutFace>
+        <ProtectedRoute>
           <FaceUnlockPage />
         </ProtectedRoute>
       } />

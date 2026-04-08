@@ -30,4 +30,5 @@ class User(db.Model):
             "sensitive_query_count":self.sensitive_query_count,
             "is_suspicious":        self.is_suspicious,
             "flagged_at":           self.flagged_at.isoformat() if self.flagged_at else None,
+            "has_face_profile":     bool(getattr(self, "face_profile", None)),
         }

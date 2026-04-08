@@ -7,7 +7,7 @@ from app import db
 from app.models.attendance_record import AttendanceRecord
 from app.models.face_profile import FaceProfile
 from app.models.user import User
-from app.services.face_attendance import build_face_embedding, match_face
+from app.services.face_attendance import build_face_embedding, get_face_profile_for_user, match_face, match_face_for_user
 
 attendance_bp = Blueprint("attendance", __name__)
 
@@ -19,6 +19,12 @@ def _current_user():
 
 def _is_admin_or_hr(user: User | None) -> bool:
     return bool(user and user.role in ("admin", "hr"))
+
+
+def _attendance_day_bounds():
+    now = datetime.utcnow()
+    day_start = datetime(now.year, now.month, now.day)
+    return day_start, day_start + timedelta(days=1)
 
 
 @attendance_bp.route("/face/register", methods=["POST"])
@@ -75,13 +81,20 @@ def mark_attendance():
         return jsonify({"error": "image_base64 is required"}), 400
 
     try:
-        profile, score = match_face(image_payload)
+        if _is_admin_or_hr(actor):
+            profile, score = match_face(image_payload)
+        else:
+            if not get_face_profile_for_user(actor.id):
+                return jsonify({
+                    "error": "No face profile registered for this account. Register your face first.",
+                }), 403
+            profile, score = match_face_for_user(actor.id, image_payload)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
     if not profile:
         return jsonify({
-            "error": "No matching face profile found",
+            "error": "Face does not match the registered profile for this account.",
             "confidence": round(float(score), 4),
         }), 404
 
@@ -92,17 +105,26 @@ def mark_attendance():
     if actor.id != matched_user.id and not _is_admin_or_hr(actor):
         return jsonify({"error": "You can only mark attendance for your own profile"}), 403
 
-    last_record = (
+    day_start, next_day = _attendance_day_bounds()
+    existing_record = (
         AttendanceRecord.query
-        .filter_by(user_id=matched_user.id)
+        .filter(
+            AttendanceRecord.user_id == matched_user.id,
+            AttendanceRecord.created_at >= day_start,
+            AttendanceRecord.created_at < next_day,
+        )
         .order_by(AttendanceRecord.created_at.desc())
         .first()
     )
-    event_type = "check_in" if not last_record or last_record.event_type == "check_out" else "check_out"
+    if existing_record:
+        return jsonify({
+            "error": "Attendance already marked for today.",
+            "record": existing_record.to_dict(),
+        }), 409
 
     record = AttendanceRecord(
         user_id=matched_user.id,
-        event_type=event_type,
+        event_type="check_in",
         confidence=score,
         source="face_recognition",
     )
@@ -110,7 +132,7 @@ def mark_attendance():
     db.session.commit()
 
     return jsonify({
-        "message": f"Attendance marked as {event_type}",
+        "message": "Attendance marked for today",
         "record": record.to_dict(),
     }), 201
 

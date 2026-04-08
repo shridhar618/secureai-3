@@ -3,7 +3,7 @@ from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identi
 from werkzeug.security import generate_password_hash, check_password_hash
 from app import db
 from app.models.user import User
-from app.services.face_attendance import match_face
+from app.services.face_attendance import get_face_profile_for_user, match_face_for_user
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -78,18 +78,18 @@ def face_verify():
     if not image_payload:
         return jsonify({"error": "image_base64 is required"}), 400
 
+    profile = get_face_profile_for_user(user.id)
+    if not profile:
+        return jsonify({
+            "error": "No face profile registered for this account. Register your face in Attendance first.",
+        }), 403
+
     try:
-        profile, score = match_face(image_payload)
+        matched_profile, score = match_face_for_user(user.id, image_payload)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
 
-    if not profile:
-        return jsonify({
-            "error": "Face not recognized. Register your face in Attendance first.",
-            "confidence": round(float(score), 4),
-        }), 403
-
-    if profile.user_id != user.id:
+    if not matched_profile:
         return jsonify({
             "error": "Face does not match the logged in account.",
             "confidence": round(float(score), 4),
