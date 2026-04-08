@@ -117,28 +117,105 @@ This creates a traceable path from prompt → policy decision → recorded evide
 ## Prerequisites
 - Python 3.10+
 - Node.js 18+
+- Docker Engine with Docker Compose support (`docker compose`)
 
-## Backend
+## Quick Start (Local Development)
+Clone the repository, then start the backend and frontend in separate terminals.
+
+```bash
+git clone https://github.com/surajgojanur/secureai-3.git
+cd secureai-3
+```
+
+### Backend
 ```bash
 cd backend
-python3 -m venv .venv      # if venv is unavailable on your machine, use: virtualenv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 python app.py
 ```
-Backend runs on `http://localhost:5001`.
-Mock mode is the default local setup, so AI keys are optional for local development.
-On first start, the app automatically creates the SQLite database at `backend/instance/secureai.db`, seeds demo users, and uses mock AI responses when `AI_PROVIDER=mock` or provider keys are not configured.
 
-## Frontend
+### Frontend
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Frontend runs on `http://localhost:3000`.
-The Vite dev server proxies `/api` and `/socket.io` to the Flask backend on port `5001`.
+
+Local URLs:
+- Frontend: `http://127.0.0.1:3000`
+- Backend: `http://127.0.0.1:5001`
+
+Notes:
+- Mock mode is the default local setup
+- No OpenAI or Gemini API key is required for local development
+- Demo users are seeded automatically on first backend start
+
+## Docker Setup
+### Run with Docker
+```bash
+docker compose up --build
+```
+
+Docker URLs:
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:5001`
+
+Notes:
+- Compose starts two services: `frontend` and `backend`
+- The frontend proxies `/api` and `/socket.io` to the backend service
+- Mock mode is the default Docker setup
+- No OpenAI or Gemini API key is required for default startup
+
+Useful commands:
+```bash
+docker compose up --build -d
+docker compose down
+docker compose down -v
+```
+
+`docker compose down -v` removes the persisted Docker volumes for SQLite and JSON-backed app data.
+
+## Environment Configuration
+Copy `backend/.env.example` to `backend/.env` for local development.
+
+Required for local/mock setup:
+```env
+SECRET_KEY=your-super-secret-key-change-in-production
+JWT_SECRET_KEY=your-jwt-secret-key-change-in-production
+DATABASE_URL=sqlite:///secureai.db
+AI_PROVIDER=mock
+```
+
+Optional provider keys:
+```env
+OPENAI_API_KEY=
+GEMINI_API_KEY=
+```
+
+Provider notes:
+- `AI_PROVIDER=mock` keeps the app in demo mode with no external AI dependency
+- Set `AI_PROVIDER=openai` and provide `OPENAI_API_KEY` to use OpenAI
+- Set `AI_PROVIDER=gemini` and provide `GEMINI_API_KEY` to use Gemini
+- If keys are missing, mock mode remains the simplest development path
+
+## Data & Persistence
+- SQLite database: `backend/instance/secureai.db`
+- JSON-backed app data: `backend/app/data`
+- In Docker, SQLite and JSON-backed data are persisted through named volumes
+- In-memory chat context is process-local and resets when the backend restarts
+
+## How Frontend Connects to Backend
+- Local development: the Vite dev server proxies `/api` and `/socket.io` to `http://127.0.0.1:5001`
+- Docker: the frontend container uses the backend service name as the proxy target
+
+## Troubleshooting
+- If `python3 -m venv` fails, install your OS package for Python venv support and retry
+- If port `3000` or `5001` is already in use, stop the conflicting process or change the published port
+- If the frontend loads but API calls fail, confirm the backend is running on port `5001`
+- If Docker services are not connecting, check `docker compose ps` and `docker compose logs backend frontend`
 
 ## Demo users
 - Admin: `admin` / `admin123`
