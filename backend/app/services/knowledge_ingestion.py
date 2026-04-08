@@ -48,6 +48,9 @@ def serialize_imported_knowledge_draft(item: dict) -> dict:
             "name": source_name,
         },
     }
+    access_rationale = str(item.get("access_rationale", "")).strip()
+    if access_rationale:
+        draft["access_rationale"] = access_rationale
     if review_status in TERMINAL_REVIEW_STATUSES:
         draft["reviewed_at"] = str(item.get("reviewed_at", "")).strip() or None
         draft["reviewed_by"] = str(item.get("reviewed_by", "")).strip() or None
@@ -88,6 +91,7 @@ def append_imported_knowledge_drafts(
             "keywords": _normalize_string_list(raw.get("keywords", [])),
             "aliases": _normalize_string_list(raw.get("aliases", [])),
             "allowed_roles": _normalize_roles(raw.get("allowed_roles", DEFAULT_ALLOWED_ROLES)),
+            "access_rationale": str(raw.get("access_rationale", "")).strip(),
             "source_type": normalized_source_type,
             "source_name": normalized_source_name,
             "review_status": DEFAULT_REVIEW_STATUS,

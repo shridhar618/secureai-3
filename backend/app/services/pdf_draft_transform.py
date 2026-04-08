@@ -8,6 +8,7 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 DEFAULT_ALLOWED_ROLES = ["admin", "hr", "intern"]
+DEFAULT_RESTRICTED_ROLES = ["admin", "hr"]
 _TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 _STOP_WORDS = {
     "a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "how",
@@ -21,6 +22,18 @@ _CATEGORY_KEYWORDS = {
     "Security": {"security", "incident", "breach", "phishing", "mfa", "confidential"},
     "Finance": {"finance", "expense", "payroll", "budget", "invoice", "procurement"},
     "Operations": {"office", "travel", "visitor", "schedule", "operations", "workplace"},
+}
+_ADMIN_ONLY_TERMS = {
+    "admin", "administrator", "audit", "compliance", "governance", "restricted", "confidential",
+    "sensitive", "security incident", "credential exposure", "breach", "export logs", "audit logs",
+}
+_HR_RESTRICTED_TERMS = {
+    "employee", "employees", "hr", "leave", "benefits", "payroll", "attendance", "manager approval",
+    "personnel", "onboarding", "probation", "compensation", "salary", "reimbursement",
+}
+_BROAD_ACCESS_TERMS = {
+    "office", "workplace", "visitor", "vpn", "password", "it support", "remote work", "schedule",
+    "travel", "device", "software access", "training", "holiday", "meeting room",
 }
 
 
@@ -128,11 +141,16 @@ def _build_transformation_prompt(extracted_text: str) -> str:
     return (
         "Return only valid JSON. "
         "Format: {\"questions\": [{\"question\": str, \"answer\": str, \"category\": str, "
-        "\"keywords\": [str], \"aliases\": [str], \"allowed_roles\": [str]}]}.\n"
+        "\"keywords\": [str], \"aliases\": [str], \"allowed_roles\": [str], \"access_rationale\": str}]}.\n"
         "Rules:\n"
         "- Propose review-ready enterprise knowledge entries from the source text.\n"
         "- Keep answers grounded in the source text.\n"
-        "- allowed_roles must be explicit and conservative. If uncertain, use [\"admin\", \"hr\", \"intern\"].\n"
+        "- allowed_roles must be explicit and conservative.\n"
+        "- Prefer [\"admin\"] for governance, audit, compliance, admin-only, or security-sensitive content.\n"
+        "- Prefer [\"admin\", \"hr\"] for HR, payroll, benefits, attendance, or other people-ops content.\n"
+        "- Use [\"admin\", \"hr\", \"intern\"] only for clearly general workplace guidance.\n"
+        "- If uncertain, use [\"admin\", \"hr\"].\n"
+        "- Include a short access_rationale explaining why the roles were chosen.\n"
         "- Do not invent facts not supported by the source.\n"
         "- Return 1 to 8 high-value entries.\n\n"
         f"Source text:\n{limited_text}"
@@ -215,7 +233,8 @@ def _build_fallback_entry(block: str) -> dict | None:
         "category": category,
         "keywords": keywords,
         "aliases": aliases,
-        "allowed_roles": DEFAULT_ALLOWED_ROLES,
+        "allowed_roles": [],
+        "access_rationale": "",
     })
 
 
@@ -291,10 +310,21 @@ def _normalize_entry(item: Any) -> dict | None:
     category = " ".join(str(item.get("category", "General")).split()).strip() or "General"
     keywords = _normalize_string_list(item.get("keywords", []))
     aliases = _normalize_string_list(item.get("aliases", []))
-    allowed_roles = _normalize_roles(item.get("allowed_roles", DEFAULT_ALLOWED_ROLES))
+    suggested_roles = _normalize_roles(item.get("allowed_roles", []))
+    access_rationale = " ".join(str(item.get("access_rationale", "")).split()).strip()
 
     if not keywords:
         keywords = _extract_keywords(question)[:4]
+
+    allowed_roles, normalized_rationale = _suggest_allowed_roles(
+        category=category,
+        question=question,
+        answer=answer,
+        keywords=keywords,
+        aliases=aliases,
+        suggested_roles=suggested_roles,
+        suggested_rationale=access_rationale,
+    )
 
     return {
         "question": question,
@@ -303,6 +333,7 @@ def _normalize_entry(item: Any) -> dict | None:
         "keywords": keywords,
         "aliases": aliases,
         "allowed_roles": allowed_roles,
+        "access_rationale": normalized_rationale,
     }
 
 
@@ -341,7 +372,75 @@ def _normalize_roles(value: Any) -> list[str]:
             continue
         seen.add(lowered)
         normalized.append(lowered)
-    return normalized or DEFAULT_ALLOWED_ROLES.copy()
+    return normalized
+
+
+def _suggest_allowed_roles(
+    *,
+    category: str,
+    question: str,
+    answer: str,
+    keywords: list[str],
+    aliases: list[str],
+    suggested_roles: list[str],
+    suggested_rationale: str,
+) -> tuple[list[str], str]:
+    combined_text = " ".join([
+        category,
+        question,
+        answer,
+        " ".join(keywords),
+        " ".join(aliases),
+    ]).lower()
+
+    if _contains_any(combined_text, _ADMIN_ONLY_TERMS) or category.lower() == "admin":
+        return ["admin"], _merge_rationale(
+            suggested_rationale,
+            "Restricted to admin because the content appears governance-sensitive or operationally restricted.",
+        )
+
+    if _contains_any(combined_text, _HR_RESTRICTED_TERMS) or category.lower() in {"hr", "finance"}:
+        if suggested_roles == ["admin"]:
+            return ["admin"], _merge_rationale(
+                suggested_rationale,
+                "Restricted to admin because the AI suggestion was narrower than the people-ops default.",
+            )
+        return ["admin", "hr"], _merge_rationale(
+            suggested_rationale,
+            "Restricted to admin and hr because the content appears people-ops or business-process sensitive.",
+        )
+
+    if suggested_roles == ["admin"]:
+        return ["admin"], _merge_rationale(
+            suggested_rationale,
+            "Restricted to admin because the AI suggestion was explicitly admin-only.",
+        )
+
+    if _contains_any(combined_text, _BROAD_ACCESS_TERMS) or category.lower() in {"general", "operations", "it"}:
+        if suggested_roles and set(suggested_roles).issubset({"admin", "hr"}):
+            return suggested_roles, _merge_rationale(
+                suggested_rationale,
+                "Kept the narrower AI suggestion because the content could affect privileged workflows.",
+            )
+        return DEFAULT_ALLOWED_ROLES.copy(), _merge_rationale(
+            suggested_rationale,
+            "Shared across admin, hr, and intern because the content appears to be general workplace guidance.",
+        )
+
+    return DEFAULT_RESTRICTED_ROLES.copy(), _merge_rationale(
+        suggested_rationale,
+        "Defaulted to admin and hr because the access scope was uncertain and broad exposure was avoided.",
+    )
+
+
+def _contains_any(text: str, phrases: set[str]) -> bool:
+    return any(phrase in text for phrase in phrases)
+
+
+def _merge_rationale(suggested_rationale: str, fallback_rationale: str) -> str:
+    if suggested_rationale:
+        return f"{suggested_rationale} {fallback_rationale}".strip()
+    return fallback_rationale
 
 
 def _extract_keywords(text: str) -> list[str]:
