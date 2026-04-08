@@ -8,6 +8,7 @@ import ChatPage from './pages/ChatPage'
 import PrivateChatPage from './pages/PrivateChatPage'
 import DashboardPage from './pages/DashboardPage'
 import QuestionBankPage from './pages/QuestionBankPage'
+import FaceAttendancePage from './pages/FaceAttendancePage'
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth()
@@ -45,6 +46,7 @@ function AppRoutes() {
         <Route index element={<Navigate to="/welcome" replace />} />
         <Route path="chat"     element={<ChatPage />} />
         <Route path="messages" element={<PrivateChatPage />} />
+        <Route path="attendance" element={<FaceAttendancePage />} />
         <Route path="question-bank" element={
           <ProtectedRoute adminOnly>
             <QuestionBankPage />

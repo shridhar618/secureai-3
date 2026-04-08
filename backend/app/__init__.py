@@ -42,12 +42,14 @@ def create_app():
     from app.routes.logs import logs_bp
     from app.routes.users import users_bp
     from app.routes.messages import messages_bp
+    from app.routes.attendance import attendance_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(chat_bp, url_prefix="/api")
     app.register_blueprint(logs_bp, url_prefix="/api")
     app.register_blueprint(users_bp, url_prefix="/api")
     app.register_blueprint(messages_bp, url_prefix="/api")
+    app.register_blueprint(attendance_bp, url_prefix="/api")
 
     # Socket events
     from app.routes import socket_events  # noqa
