@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 
 import api from '../utils/api'
+import { useAuth } from '../context/AuthContext'
 
 const DEFAULT_FORM = {
   question: '',
@@ -16,14 +17,20 @@ const DEFAULT_FORM = {
 }
 
 export default function QuestionBankPage() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [questions, setQuestions] = useState([])
+  const [drafts, setDrafts] = useState([])
   const [history, setHistory] = useState([])
   const [queueItems, setQueueItems] = useState([])
   const [query, setQuery] = useState('')
+  const [draftActionId, setDraftActionId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState('')
+  const [statusMessage, setStatusMessage] = useState('')
   const [editingId, setEditingId] = useState(null)
+  const [selectedDraftId, setSelectedDraftId] = useState(null)
   const [form, setForm] = useState(DEFAULT_FORM)
   const [importText, setImportText] = useState('')
   const [importFile, setImportFile] = useState(null)
@@ -36,14 +43,25 @@ export default function QuestionBankPage() {
     setLoading(true)
     setError('')
     try {
-      const [questionsRes, historyRes, queueRes] = await Promise.all([
+      const requests = [
         api.get('/chat/questions'),
         api.get('/chat/questions/history'),
         api.get('/chat/questions/review-queue'),
-      ])
+      ]
+      if (isAdmin) {
+        requests.push(api.get('/chat/questions/import-drafts'))
+      }
+      const [questionsRes, historyRes, queueRes, draftsRes] = await Promise.all(requests)
       setQuestions(questionsRes.data.questions || [])
       setHistory(historyRes.data.history || [])
       setQueueItems(queueRes.data.items || [])
+      const nextDrafts = draftsRes?.data?.drafts || []
+      setDrafts(nextDrafts)
+      setSelectedDraftId(prev => (
+        nextDrafts.some(item => item.id === prev)
+          ? prev
+          : nextDrafts[0]?.id || null
+      ))
     } catch (err) {
       setError(err?.response?.data?.error || 'Unable to load question bank tools.')
     } finally {
@@ -53,7 +71,7 @@ export default function QuestionBankPage() {
 
   useEffect(() => {
     loadAll()
-  }, [])
+  }, [isAdmin])
 
   const resetForm = () => {
     setEditingId(null)
@@ -154,9 +172,11 @@ export default function QuestionBankPage() {
       }
 
       const importedCount = response?.data?.count || 0
+      const draftCount = response?.data?.draft_count || 0
       const duplicateCount = response?.data?.skipped_duplicates?.length || 0
       const sourceType = response?.data?.metadata?.source_type
       const parts = [`Imported ${importedCount} question${importedCount === 1 ? '' : 's'}`]
+      if (draftCount) parts.push(`created ${draftCount} draft${draftCount === 1 ? '' : 's'}`)
       if (sourceType) parts.push(`from ${sourceType.toUpperCase()}`)
       if (duplicateCount) parts.push(`skipped ${duplicateCount} duplicate${duplicateCount === 1 ? '' : 's'}`)
       setImportSummary(parts.join(' · '))
@@ -193,6 +213,23 @@ export default function QuestionBankPage() {
     }
   }
 
+  const selectedDraft = drafts.find(item => item.id === selectedDraftId) || null
+
+  const reviewDraft = async (draftId, action) => {
+    setError('')
+    setStatusMessage('')
+    setDraftActionId(draftId)
+    try {
+      await api.post(`/chat/questions/import-drafts/${draftId}/${action}`)
+      setStatusMessage(action === 'approve' ? 'Draft approved and added to the active bank.' : 'Draft rejected.')
+      await loadAll()
+    } catch (err) {
+      setError(err?.response?.data?.error || `Unable to ${action} draft right now.`)
+    } finally {
+      setDraftActionId(null)
+    }
+  }
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full overflow-y-auto">
       <div className="px-6 py-6 space-y-6">
@@ -218,9 +255,135 @@ export default function QuestionBankPage() {
             {error}
           </div>
         )}
+        {statusMessage && (
+          <div className="px-4 py-3 rounded-xl bg-success/10 border border-success/20 text-sm text-success">
+            {statusMessage}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_0.9fr] gap-6">
           <div className="space-y-6">
+            {isAdmin && (
+              <div className="glass rounded-2xl p-5 border border-white/5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Inbox size={16} className="text-accent" />
+                  <div>
+                    <p className="text-sm font-bold text-white">Imported Drafts</p>
+                    <p className="text-[10px] font-mono text-slate-500">Review PDF-generated draft knowledge entries before activation</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr] gap-4">
+                  <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                    {loading ? (
+                      <p className="text-xs text-slate-500 font-mono">Loading drafts...</p>
+                    ) : drafts.length ? drafts.map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelectedDraftId(item.id)}
+                        className={`w-full text-left rounded-2xl border p-4 transition-colors ${
+                          selectedDraftId === item.id
+                            ? 'bg-accent/10 border-accent/20'
+                            : 'bg-bg-800/70 border-white/8 hover:border-accent/20'
+                        }`}
+                      >
+                        <p className="text-sm font-semibold text-white line-clamp-2">{item.question}</p>
+                        <p className="mt-1 text-[10px] font-mono text-slate-500">
+                          {item.category} · {item.source_type} · {item.review_status}
+                        </p>
+                        <p className="mt-2 text-[10px] font-mono text-slate-600">
+                          {item.source_name || 'unknown source'}
+                        </p>
+                      </button>
+                    )) : (
+                      <p className="text-xs text-slate-500 font-mono">No imported drafts waiting for review.</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl bg-bg-800/70 border border-white/8 p-4 min-h-[320px]">
+                    {selectedDraft ? (
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm font-semibold text-white">{selectedDraft.question}</p>
+                          <p className="mt-1 text-[10px] font-mono text-slate-500">
+                            {selectedDraft.category} · roles: {(selectedDraft.allowed_roles || []).join(', ')}
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-[11px]">
+                          <div className="rounded-xl bg-bg-900/60 border border-white/6 p-3">
+                            <p className="text-slate-500 font-mono uppercase">Source</p>
+                            <p className="text-slate-200 mt-1 break-all">{selectedDraft.source_name || 'Unknown'}</p>
+                            <p className="text-slate-500 mt-1">{selectedDraft.source_type}</p>
+                          </div>
+                          <div className="rounded-xl bg-bg-900/60 border border-white/6 p-3">
+                            <p className="text-slate-500 font-mono uppercase">Review</p>
+                            <p className="text-slate-200 mt-1">{selectedDraft.review_status}</p>
+                            <p className="text-slate-500 mt-1">{new Date(selectedDraft.imported_at).toLocaleString()}</p>
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className="text-[10px] font-mono uppercase text-slate-500 mb-2">Answer</p>
+                          <div className="rounded-xl bg-bg-900/60 border border-white/6 p-3 text-sm text-slate-200 whitespace-pre-wrap">
+                            {selectedDraft.answer}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-[10px] font-mono uppercase text-slate-500 mb-2">Keywords</p>
+                            <div className="flex flex-wrap gap-2">
+                              {(selectedDraft.keywords || []).map(keyword => (
+                                <span key={keyword} className="px-2 py-1 rounded-lg text-[10px] font-mono bg-accent/10 text-accent border border-accent/20">
+                                  {keyword}
+                                </span>
+                              ))}
+                              {!selectedDraft.keywords?.length && <span className="text-xs text-slate-500">No keywords</span>}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-mono uppercase text-slate-500 mb-2">Aliases</p>
+                            <div className="flex flex-wrap gap-2">
+                              {(selectedDraft.aliases || []).map(alias => (
+                                <span key={alias} className="px-2 py-1 rounded-lg text-[10px] font-mono bg-white/5 text-slate-300 border border-white/8">
+                                  {alias}
+                                </span>
+                              ))}
+                              {!selectedDraft.aliases?.length && <span className="text-xs text-slate-500">No aliases</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        {selectedDraft.review_status === 'draft' && (
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              onClick={() => reviewDraft(selectedDraft.id, 'approve')}
+                              disabled={draftActionId === selectedDraft.id}
+                              className="px-4 py-2 rounded-xl bg-success/10 border border-success/20 text-sm text-success disabled:opacity-50"
+                            >
+                              <CheckCircle2 size={13} className="inline mr-1.5" />
+                              {draftActionId === selectedDraft.id ? 'Working...' : 'Approve'}
+                            </button>
+                            <button
+                              onClick={() => reviewDraft(selectedDraft.id, 'reject')}
+                              disabled={draftActionId === selectedDraft.id}
+                              className="px-4 py-2 rounded-xl bg-danger/10 border border-danger/20 text-sm text-danger disabled:opacity-50"
+                            >
+                              <CircleSlash size={13} className="inline mr-1.5" />
+                              {draftActionId === selectedDraft.id ? 'Working...' : 'Reject'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 font-mono">Select a draft to inspect its details.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="glass rounded-2xl p-5 border border-white/5">
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-2">
