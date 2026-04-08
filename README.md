@@ -121,13 +121,15 @@ This creates a traceable path from prompt → policy decision → recorded evide
 ## Backend
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
+python3 -m venv .venv      # if venv is unavailable on your machine, use: virtualenv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env
 python app.py
 ```
 Backend runs on `http://localhost:5001`.
+Mock mode is the default local setup, so AI keys are optional for local development.
+On first start, the app automatically creates the SQLite database at `backend/instance/secureai.db`, seeds demo users, and uses mock AI responses when `AI_PROVIDER=mock` or provider keys are not configured.
 
 ## Frontend
 ```bash
@@ -136,6 +138,7 @@ npm install
 npm run dev
 ```
 Frontend runs on `http://localhost:3000`.
+The Vite dev server proxies `/api` and `/socket.io` to the Flask backend on port `5001`.
 
 ## Demo users
 - Admin: `admin` / `admin123`
