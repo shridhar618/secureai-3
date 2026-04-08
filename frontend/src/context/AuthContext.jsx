@@ -6,6 +6,7 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(() => localStorage.getItem('token'))
+  const [faceVerified, setFaceVerified] = useState(() => sessionStorage.getItem('face_verified') === '1')
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -24,9 +25,11 @@ export function AuthProvider({ children }) {
     const res = await api.post('/auth/login', { username, password })
     const { token: t, user: u } = res.data
     localStorage.setItem('token', t)
+    sessionStorage.removeItem('face_verified')
     api.defaults.headers.common['Authorization'] = `Bearer ${t}`
     setToken(t)
     setUser(u)
+    setFaceVerified(false)
     return u
   }, [])
 
@@ -34,21 +37,30 @@ export function AuthProvider({ children }) {
     const res = await api.post('/auth/register', data)
     const { token: t, user: u } = res.data
     localStorage.setItem('token', t)
+    sessionStorage.removeItem('face_verified')
     api.defaults.headers.common['Authorization'] = `Bearer ${t}`
     setToken(t)
     setUser(u)
+    setFaceVerified(false)
     return u
+  }, [])
+
+  const markFaceVerified = useCallback(() => {
+    sessionStorage.setItem('face_verified', '1')
+    setFaceVerified(true)
   }, [])
 
   const logout = useCallback(() => {
     localStorage.removeItem('token')
+    sessionStorage.removeItem('face_verified')
     delete api.defaults.headers.common['Authorization']
     setToken(null)
     setUser(null)
+    setFaceVerified(false)
   }, [])
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, token, loading, faceVerified, markFaceVerified, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   )
