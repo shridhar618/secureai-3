@@ -117,6 +117,64 @@ This creates a traceable path from prompt → policy decision → recorded evide
 ## Prerequisites
 - Python 3.10+
 - Node.js 18+
+- Docker Engine with Docker Compose support (`docker compose`)
+
+## Docker
+Run the full app with Docker when you want a fresh-machine setup that does not depend on a local Python or Node install.
+
+### Start the stack
+```bash
+docker compose up --build
+```
+
+This starts:
+- Frontend on `http://localhost:3000`
+- Backend on `http://localhost:5001`
+
+The frontend container serves the Vite app and proxies `/api` and `/socket.io` to the backend container, so the browser still uses the same relative paths as local development.
+
+### Default behavior
+- Docker starts in mock mode by default with `AI_PROVIDER=mock`
+- No OpenAI or Gemini key is required for the default startup
+- Demo users are seeded automatically on first backend start
+
+### Run in the background
+```bash
+docker compose up --build -d
+```
+
+### Stop the stack
+```bash
+docker compose down
+```
+
+### Reset persistent Docker data
+```bash
+docker compose down -v
+```
+
+This removes the named volumes used for:
+- SQLite data in `backend/instance/secureai.db`
+- JSON-backed question bank/history/review data under `backend/app/data`
+
+### Use real AI provider keys
+You can override the default mock mode by exporting environment variables before starting compose:
+
+```bash
+export AI_PROVIDER=openai
+export OPENAI_API_KEY=your_key_here
+docker compose up --build
+```
+
+Or for Gemini:
+
+```bash
+export AI_PROVIDER=gemini
+export GEMINI_API_KEY=your_key_here
+docker compose up --build
+```
+
+If provider keys are missing or you leave `AI_PROVIDER=mock`, the app continues to run in demo mode.
 
 ## Backend
 ```bash
@@ -144,6 +202,12 @@ The Vite dev server proxies `/api` and `/socket.io` to the Flask backend on port
 - Admin: `admin` / `admin123`
 - HR: `hr_jane` / `hr123`
 - Intern: `intern_bob` / `intern123`
+
+## Docker Troubleshooting
+- If ports `3000` or `5001` are already in use, stop the conflicting process or change the published ports in `compose.yaml`.
+- If you change Python or Node dependencies, rebuild with `docker compose up --build`.
+- If you want a completely clean state, run `docker compose down -v` to remove the persisted SQLite and JSON data volumes.
+- If the frontend loads but API calls fail, confirm both services are up with `docker compose ps` and inspect logs with `docker compose logs backend frontend`.
 
 # 9. ⚠️ Known Limitations (IMPORTANT)
 - **In-memory chat context**: conversation history is stored in process memory and resets on restart.
