@@ -31,6 +31,10 @@ from app.services.ai_service import (
     serialize_question,
     update_mock_question,
 )
+from app.services.knowledge_ingestion import (
+    append_imported_knowledge_drafts,
+    list_imported_knowledge_drafts,
+)
 from app.services.governance import (
     SUSPICIOUS_QUERY_THRESHOLD,
     apply_governance,
@@ -247,7 +251,21 @@ def import_questions():
             if not file_obj or not file_obj.filename:
                 return jsonify({"error": "Please choose a .json or .pdf file to import"}), 400
             entries, metadata = extract_questions_from_uploaded_file(file_obj.filename, file_obj.read())
-            result = import_mock_questions(entries, actor=admin.username)
+            if metadata.get("source_type") == "pdf":
+                drafts = append_imported_knowledge_drafts(
+                    entries,
+                    source_type="pdf",
+                    source_name=file_obj.filename,
+                )
+                result = {
+                    "count": len(drafts),
+                    "draft_count": len(drafts),
+                    "questions": [],
+                    "drafts": drafts,
+                    "skipped_duplicates": [],
+                }
+            else:
+                result = import_mock_questions(entries, actor=admin.username)
             result["metadata"] = metadata
         else:
             data = request.get_json() or {}
@@ -255,6 +273,18 @@ def import_questions():
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     return jsonify(result), 201
+
+
+@chat_bp.route("/chat/questions/import-drafts", methods=["GET"])
+@jwt_required()
+def import_drafts():
+    admin = _require_admin()
+    if not admin:
+        return jsonify({"error": "Admin access required"}), 403
+
+    return jsonify({
+        "drafts": list_imported_knowledge_drafts(request.args.get("review_status")),
+    }), 200
 
 
 @chat_bp.route("/chat/questions/export", methods=["GET"])
