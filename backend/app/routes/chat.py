@@ -152,7 +152,16 @@ def get_question_bank():
         if user.role == "admin":
             full_question = get_question(item["id"])
             if full_question:
-                item["answer"] = full_question["answer"]
+                item.update({
+                    "answer": full_question["answer"],
+                    "source_type": full_question.get("source_type"),
+                    "source_name": full_question.get("source_name"),
+                    "source_pages": full_question.get("source_pages"),
+                    "imported_at": full_question.get("imported_at"),
+                    "imported_by": full_question.get("imported_by"),
+                    "source_excerpt": full_question.get("source_excerpt"),
+                    "access_rationale": full_question.get("access_rationale"),
+                })
         item["is_favorite"] = item["id"] in favorite_ids
         questions.append(item)
     return jsonify({"questions": questions}), 200
@@ -175,7 +184,16 @@ def search_question_bank():
         if user.role == "admin":
             full_question = get_question(item["id"])
             if full_question:
-                item["answer"] = full_question["answer"]
+                item.update({
+                    "answer": full_question["answer"],
+                    "source_type": full_question.get("source_type"),
+                    "source_name": full_question.get("source_name"),
+                    "source_pages": full_question.get("source_pages"),
+                    "imported_at": full_question.get("imported_at"),
+                    "imported_by": full_question.get("imported_by"),
+                    "source_excerpt": full_question.get("source_excerpt"),
+                    "access_rationale": full_question.get("access_rationale"),
+                })
         item["is_favorite"] = item["id"] in favorite_ids
         questions.append(item)
     return jsonify({"questions": questions, "query": query}), 200
@@ -260,6 +278,8 @@ def import_questions():
                     entries,
                     source_type="pdf",
                     source_name=file_obj.filename,
+                    source_pages=metadata.get("source_pages", []),
+                    imported_by=admin.username,
                 )
                 result = {
                     "count": len(drafts),

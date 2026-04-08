@@ -43,11 +43,18 @@ def serialize_imported_knowledge_draft(item: dict) -> dict:
         "source_name": source_name,
         "review_status": review_status,
         "imported_at": str(item.get("imported_at", "")).strip(),
+        "imported_by": str(item.get("imported_by", "")).strip() or None,
         "source": {
             "type": source_type,
             "name": source_name,
         },
     }
+    source_pages = _normalize_pages(item.get("source_pages", []))
+    if source_pages:
+        draft["source_pages"] = source_pages
+    source_excerpt = str(item.get("source_excerpt", "")).strip()
+    if source_excerpt:
+        draft["source_excerpt"] = source_excerpt
     access_rationale = str(item.get("access_rationale", "")).strip()
     if access_rationale:
         draft["access_rationale"] = access_rationale
@@ -64,6 +71,8 @@ def append_imported_knowledge_drafts(
     *,
     source_type: str = "import",
     source_name: str = "",
+    source_pages: list[int] | None = None,
+    imported_by: str = "",
 ) -> list[dict]:
     if not isinstance(entries, list) or not entries:
         raise ValueError("Draft import payload must be a non-empty list")
@@ -73,6 +82,8 @@ def append_imported_knowledge_drafts(
     imported_at = datetime.utcnow().isoformat()
     normalized_source_type = (source_type or "import").strip().lower() or "import"
     normalized_source_name = str(source_name or "").strip()
+    normalized_source_pages = _normalize_pages(source_pages or [])
+    normalized_imported_by = str(imported_by or "").strip()
 
     for raw in entries:
         if not isinstance(raw, dict):
@@ -92,10 +103,13 @@ def append_imported_knowledge_drafts(
             "aliases": _normalize_string_list(raw.get("aliases", [])),
             "allowed_roles": _normalize_roles(raw.get("allowed_roles", DEFAULT_ALLOWED_ROLES)),
             "access_rationale": str(raw.get("access_rationale", "")).strip(),
+            "source_excerpt": str(raw.get("source_excerpt", "")).strip(),
             "source_type": normalized_source_type,
             "source_name": normalized_source_name,
+            "source_pages": normalized_source_pages,
             "review_status": DEFAULT_REVIEW_STATUS,
             "imported_at": imported_at,
+            "imported_by": normalized_imported_by,
         }
         drafts.append(draft)
         appended.append(serialize_imported_knowledge_draft(draft))
@@ -140,6 +154,13 @@ def build_active_question_from_draft(draft_id: str) -> dict:
         "keywords": _normalize_string_list(draft.get("keywords", [])),
         "aliases": _normalize_string_list(draft.get("aliases", [])),
         "allowed_roles": _normalize_roles(draft.get("allowed_roles", DEFAULT_ALLOWED_ROLES)),
+        "source_type": str(draft.get("source_type", "")).strip(),
+        "source_name": str(draft.get("source_name", "")).strip(),
+        "source_pages": _normalize_pages(draft.get("source_pages", [])),
+        "imported_at": str(draft.get("imported_at", "")).strip(),
+        "imported_by": str(draft.get("imported_by", "")).strip(),
+        "source_excerpt": str(draft.get("source_excerpt", "")).strip(),
+        "access_rationale": str(draft.get("access_rationale", "")).strip(),
     }
 
 
@@ -230,3 +251,26 @@ def _normalize_roles(value: list[str] | str | None) -> list[str]:
     allowed = {"admin", "hr", "intern"}
     normalized = [role.lower() for role in _normalize_string_list(value) if role.lower() in allowed]
     return normalized or DEFAULT_ALLOWED_ROLES.copy()
+
+
+def _normalize_pages(value: list[int] | list[str] | str | None) -> list[int]:
+    if isinstance(value, list):
+        items = value
+    elif value is None:
+        items = []
+    else:
+        items = [value]
+
+    normalized = []
+    seen = set()
+    for item in items:
+        try:
+            page = int(item)
+        except (TypeError, ValueError):
+            continue
+        if page <= 0 or page in seen:
+            continue
+        seen.add(page)
+        normalized.append(page)
+    normalized.sort()
+    return normalized

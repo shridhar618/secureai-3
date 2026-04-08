@@ -230,6 +230,22 @@ export default function QuestionBankPage() {
     }
   }
 
+  const formatTimestamp = (value) => {
+    if (!value) return 'Unknown'
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString()
+  }
+
+  const renderMetadataChips = (item) => {
+    const chips = []
+    if (item.source_type) chips.push(`type: ${item.source_type}`)
+    if (item.source_name) chips.push(`source: ${item.source_name}`)
+    if (item.imported_by) chips.push(`by: ${item.imported_by}`)
+    if (item.imported_at) chips.push(`at: ${formatTimestamp(item.imported_at)}`)
+    if (item.source_pages?.length) chips.push(`pages: ${item.source_pages.join(', ')}`)
+    return chips
+  }
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full overflow-y-auto">
       <div className="px-6 py-6 space-y-6">
@@ -315,13 +331,36 @@ export default function QuestionBankPage() {
                             <p className="text-slate-500 font-mono uppercase">Source</p>
                             <p className="text-slate-200 mt-1 break-all">{selectedDraft.source_name || 'Unknown'}</p>
                             <p className="text-slate-500 mt-1">{selectedDraft.source_type}</p>
+                            {selectedDraft.source_pages?.length ? (
+                              <p className="text-slate-500 mt-1">pages {selectedDraft.source_pages.join(', ')}</p>
+                            ) : null}
                           </div>
                           <div className="rounded-xl bg-bg-900/60 border border-white/6 p-3">
                             <p className="text-slate-500 font-mono uppercase">Review</p>
                             <p className="text-slate-200 mt-1">{selectedDraft.review_status}</p>
-                            <p className="text-slate-500 mt-1">{new Date(selectedDraft.imported_at).toLocaleString()}</p>
+                            <p className="text-slate-500 mt-1">{formatTimestamp(selectedDraft.imported_at)}</p>
+                            {selectedDraft.imported_by ? (
+                              <p className="text-slate-500 mt-1">imported by {selectedDraft.imported_by}</p>
+                            ) : null}
                           </div>
                         </div>
+
+                        {(selectedDraft.source_excerpt || selectedDraft.access_rationale) && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
+                            {selectedDraft.source_excerpt ? (
+                              <div className="rounded-xl bg-bg-900/60 border border-white/6 p-3">
+                                <p className="text-slate-500 font-mono uppercase">Source Excerpt</p>
+                                <p className="text-slate-200 mt-1 whitespace-pre-wrap">{selectedDraft.source_excerpt}</p>
+                              </div>
+                            ) : null}
+                            {selectedDraft.access_rationale ? (
+                              <div className="rounded-xl bg-bg-900/60 border border-white/6 p-3">
+                                <p className="text-slate-500 font-mono uppercase">Access Rationale</p>
+                                <p className="text-slate-200 mt-1 whitespace-pre-wrap">{selectedDraft.access_rationale}</p>
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
 
                         <div>
                           <p className="text-[10px] font-mono uppercase text-slate-500 mb-2">Answer</p>
@@ -447,6 +486,24 @@ export default function QuestionBankPage() {
                         </span>
                       ))}
                     </div>
+                    {isAdmin && renderMetadataChips(item).length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-mono uppercase text-slate-500">Import Metadata</p>
+                        <div className="flex flex-wrap gap-2">
+                          {renderMetadataChips(item).map(chip => (
+                            <span key={chip} className="px-2 py-1 rounded-lg text-[10px] font-mono bg-white/5 text-slate-300 border border-white/8">
+                              {chip}
+                            </span>
+                          ))}
+                        </div>
+                        {item.source_excerpt ? (
+                          <p className="text-xs text-slate-400 line-clamp-3">{item.source_excerpt}</p>
+                        ) : null}
+                        {item.access_rationale ? (
+                          <p className="text-xs text-slate-500">Access rationale: {item.access_rationale}</p>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {!loading && !searching && !questions.length && (

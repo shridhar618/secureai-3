@@ -226,6 +226,7 @@ def _build_fallback_entry(block: str) -> dict | None:
     category = _infer_category(block)
     keywords = _extract_keywords(topic or answer)[:4]
     aliases = [topic] if topic and topic.lower() not in question.lower() else []
+    source_excerpt = answer[:240].strip()
 
     return _normalize_entry({
         "question": question,
@@ -235,6 +236,7 @@ def _build_fallback_entry(block: str) -> dict | None:
         "aliases": aliases,
         "allowed_roles": [],
         "access_rationale": "",
+        "source_excerpt": source_excerpt,
     })
 
 
@@ -312,6 +314,7 @@ def _normalize_entry(item: Any) -> dict | None:
     aliases = _normalize_string_list(item.get("aliases", []))
     suggested_roles = _normalize_roles(item.get("allowed_roles", []))
     access_rationale = " ".join(str(item.get("access_rationale", "")).split()).strip()
+    source_excerpt = " ".join(str(item.get("source_excerpt", "")).split()).strip()
 
     if not keywords:
         keywords = _extract_keywords(question)[:4]
@@ -334,6 +337,7 @@ def _normalize_entry(item: Any) -> dict | None:
         "aliases": aliases,
         "allowed_roles": allowed_roles,
         "access_rationale": normalized_rationale,
+        "source_excerpt": source_excerpt[:240],
     }
 
 
