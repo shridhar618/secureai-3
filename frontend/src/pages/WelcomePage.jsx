@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { motion, useAnimation, useMotionValue, useTransform } from 'framer-motion'
 import { useAuth } from '../context/AuthContext'
 import { ArrowRight, LogOut, Shield, Cpu, Lock, BarChart3, MessageSquare } from 'lucide-react'
+import { formatRoleName } from '../utils/roles'
 
 // ─── Role config ────────────────────────────────────────────────────────────
 const ROLE_META = {
@@ -146,7 +147,14 @@ export default function WelcomePage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const role = user?.role || 'intern'
-  const meta = ROLE_META[role] || ROLE_META.intern
+  const meta = ROLE_META[role] || {
+    label: formatRoleName(role),
+    badge: `${formatRoleName(role).toUpperCase()} ACCESS`,
+    color: '#00e5ff',
+    glow: 'rgba(0,229,255,0.25)',
+    accent: 'rgba(0,229,255,0.1)',
+    tagline: 'Governed AI access · Enterprise knowledge · Secure workflows',
+  }
 
   const handleLogout = () => {
     logout()

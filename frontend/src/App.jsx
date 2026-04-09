@@ -10,6 +10,7 @@ import DashboardPage from './pages/DashboardPage'
 import QuestionBankPage from './pages/QuestionBankPage'
 import FaceAttendancePage from './pages/FaceAttendancePage'
 import FaceUnlockPage from './pages/FaceUnlockPage'
+import { isAdminRole } from './utils/roles'
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth()
@@ -23,7 +24,7 @@ function ProtectedRoute({ children, adminOnly = false }) {
     </div>
   )
   if (!user) return <Navigate to="/login" replace />
-  if (adminOnly && user.role !== 'admin') return <Navigate to="/chat" replace />
+  if (adminOnly && !isAdminRole(user.role)) return <Navigate to="/chat" replace />
   return children
 }
 

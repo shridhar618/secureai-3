@@ -5,18 +5,7 @@ import {
   MessageSquare, LayoutDashboard,
   LogOut, Shield, ChevronRight, Cpu, Database, ScanFace
 } from 'lucide-react'
-
-const ROLE_COLORS = {
-  admin: 'text-purple-400 bg-purple-400/10 border-purple-400/20',
-  hr: 'text-warn bg-warn/10 border-warn/20',
-  intern: 'text-accent bg-accent/10 border-accent/20',
-}
-
-const ROLE_BADGE = {
-  admin: '⬡ ADMIN',
-  hr: '◈ HR',
-  intern: '◎ INTERN',
-}
+import { getRoleTheme, isAdminRole } from '../utils/roles'
 
 export default function Layout() {
   const { user, logout } = useAuth()
@@ -26,13 +15,14 @@ export default function Layout() {
     { to: '/chat', icon: Cpu, label: 'AI Chatbot', desc: 'Governed AI' },
     { to: '/messages', icon: MessageSquare, label: 'Secure Msg', desc: 'Private comms' },
     { to: '/attendance', icon: ScanFace, label: 'Attendance', desc: 'Face check-in/out' },
-    ...(user?.role === 'admin'
+    ...(isAdminRole(user?.role)
       ? [
           { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard', desc: 'Audit & analytics' },
           { to: '/question-bank', icon: Database, label: 'Question Bank', desc: 'Dataset ops' },
         ]
       : []),
   ]
+  const roleTheme = getRoleTheme(user?.role)
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg-900 grid-bg">
@@ -72,8 +62,8 @@ export default function Layout() {
               </div>
             </div>
             <div className="mt-2">
-              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${ROLE_COLORS[user?.role]}`}>
-                {ROLE_BADGE[user?.role]}
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-mono font-bold border ${roleTheme.badgeColor}`}>
+                {roleTheme.badge}
               </span>
             </div>
           </div>

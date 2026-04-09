@@ -1,6 +1,7 @@
 import base64
 import hashlib
 import io
+import os
 
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
@@ -11,7 +12,7 @@ BASE_IMAGE_SIZE = (96, 96)
 GLOBAL_FEATURE_SIZE = (24, 24)
 CENTER_FEATURE_SIZE = (20, 20)
 GRID_SIZE = 6
-MATCH_THRESHOLD = 0.965
+MATCH_THRESHOLD = float(os.getenv("FACE_MATCH_THRESHOLD", "0.93"))
 AMBIGUOUS_MARGIN = 0.015
 
 
@@ -113,6 +114,20 @@ def build_face_embedding(image_payload: str) -> tuple[np.ndarray, str]:
     return embedding, sample_hash
 
 
+def _build_face_embeddings(image_payload: str) -> tuple[list[np.ndarray], str]:
+    raw = _decode_image_bytes(image_payload)
+    image = _load_image(raw)
+    sample_hash = hashlib.sha256(raw).hexdigest()
+
+    # Selfie cameras and browsers do not consistently preserve left/right orientation.
+    # Compare both the captured frame and its mirrored variant to avoid false negatives.
+    embeddings = [
+        _extract_features(image),
+        _extract_features(np.fliplr(image)),
+    ]
+    return embeddings, sample_hash
+
+
 def _score_embeddings(probe_embedding: np.ndarray, known_embedding: np.ndarray) -> float:
     if probe_embedding.shape != known_embedding.shape:
         return -1.0
@@ -156,14 +171,29 @@ def _match_probe_to_profiles(
 
 
 def match_face(image_payload: str, threshold: float = MATCH_THRESHOLD):
-    probe_embedding, _ = build_face_embedding(image_payload)
+    probe_embeddings, _ = _build_face_embeddings(image_payload)
     profiles = FaceProfile.query.all()
-    return _match_probe_to_profiles(probe_embedding, profiles, threshold=threshold)
+    best_profile = None
+    best_score = 0.0
+    for probe_embedding in probe_embeddings:
+        profile, score = _match_probe_to_profiles(probe_embedding, profiles, threshold=threshold)
+        if score > best_score:
+            best_profile = profile
+            best_score = score
+    return best_profile, best_score
 
 
 def match_face_for_user(user_id: int, image_payload: str, threshold: float = MATCH_THRESHOLD):
-    probe_embedding, _ = build_face_embedding(image_payload)
+    probe_embeddings, _ = _build_face_embeddings(image_payload)
     profile = get_face_profile_for_user(user_id)
     if not profile:
         return None, 0.0
-    return _match_probe_to_profiles(probe_embedding, [profile], threshold=threshold)
+
+    best_profile = None
+    best_score = 0.0
+    for probe_embedding in probe_embeddings:
+        matched_profile, score = _match_probe_to_profiles(probe_embedding, [profile], threshold=threshold)
+        if score > best_score:
+            best_profile = matched_profile
+            best_score = score
+    return best_profile, best_score

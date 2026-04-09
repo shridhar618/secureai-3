@@ -4,6 +4,8 @@ import os
 import re
 from typing import Any
 
+from app.services.rbac import DEFAULT_ROLE_NAMES, normalize_role_name
+
 
 logger = logging.getLogger(__name__)
 
@@ -370,9 +372,10 @@ def _normalize_string_list(value: Any) -> list[str]:
 def _normalize_roles(value: Any) -> list[str]:
     normalized = []
     seen = set()
+    allowed_roles = {normalize_role_name(role) for role in DEFAULT_ROLE_NAMES}
     for role in _normalize_string_list(value):
-        lowered = role.lower()
-        if lowered not in {"admin", "hr", "intern"} or lowered in seen:
+        lowered = normalize_role_name(role)
+        if lowered not in allowed_roles or lowered in seen:
             continue
         seen.add(lowered)
         normalized.append(lowered)

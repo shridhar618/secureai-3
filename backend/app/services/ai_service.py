@@ -21,6 +21,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from app.services.pdf_draft_transform import transform_pdf_text_to_candidate_entries
+from app.services.rbac import DEFAULT_ROLE_NAMES, normalize_role_name
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ QUESTION_BANK_PATH = BASE_DATA_DIR / "mock_question_bank.json"
 QUESTION_HISTORY_PATH = BASE_DATA_DIR / "mock_question_bank_history.json"
 UNANSWERED_QUEUE_PATH = BASE_DATA_DIR / "unanswered_questions.json"
 
-DEFAULT_ALLOWED_ROLES = ["admin", "hr", "intern"]
+DEFAULT_ALLOWED_ROLES = DEFAULT_ROLE_NAMES[:3]
 _TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 _STOP_WORDS = {
     "a", "an", "and", "are", "can", "do", "does", "for", "here", "how", "i",
@@ -1031,8 +1032,8 @@ def _normalize_roles(roles: list[str] | None) -> list[str]:
     seen = set()
     raw_roles = roles or DEFAULT_ALLOWED_ROLES
     for role in raw_roles:
-        value = str(role).strip().lower()
-        if value in {"admin", "hr", "intern"} and value not in seen:
+        value = normalize_role_name(role)
+        if value and value not in seen:
             normalized.append(value)
             seen.add(value)
     return normalized or DEFAULT_ALLOWED_ROLES.copy()

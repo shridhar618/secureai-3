@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext'
 import { Shield, AlertCircle, Camera, ScanFace } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../utils/api'
+import { formatRoleName } from '../utils/roles'
 
 export default function RegisterPage() {
   const { register } = useAuth()
@@ -19,6 +20,7 @@ export default function RegisterPage() {
   const [cameraError, setCameraError] = useState('')
   const [faceCaptured, setFaceCaptured] = useState(false)
   const [faceImageBase64, setFaceImageBase64] = useState('')
+  const [roles, setRoles] = useState([])
 
   useEffect(() => {
     let mounted = true
@@ -51,6 +53,36 @@ export default function RegisterPage() {
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop())
       }
+    }
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+
+    async function loadRoles() {
+      try {
+        const res = await api.get('/roles')
+        const nextRoles = res.data.roles || []
+        if (!mounted) return
+        setRoles(nextRoles)
+        if (nextRoles.length && !nextRoles.some(role => role.name === form.role)) {
+          const fallback = nextRoles.find(role => role.name === 'intern')?.name || nextRoles[0].name
+          setForm(prev => ({ ...prev, role: fallback }))
+        }
+      } catch {
+        if (mounted) {
+          setRoles([
+            { name: 'intern' },
+            { name: 'hr' },
+            { name: 'admin' },
+          ])
+        }
+      }
+    }
+
+    loadRoles()
+    return () => {
+      mounted = false
     }
   }, [])
 
@@ -159,9 +191,9 @@ export default function RegisterPage() {
                 onChange={e => setForm(f => ({ ...f, role: e.target.value }))}
                 className="w-full px-4 py-3 rounded-xl bg-bg-800 border border-white/8 text-white focus:outline-none focus:border-accent/50 transition-all text-sm"
               >
-                <option value="intern">Intern</option>
-                <option value="hr">HR</option>
-                <option value="admin">Admin</option>
+                {roles.map(role => (
+                  <option key={role.name} value={role.name}>{formatRoleName(role.name)}</option>
+                ))}
               </select>
             </div>
 

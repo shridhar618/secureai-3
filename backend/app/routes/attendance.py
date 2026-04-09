@@ -8,6 +8,7 @@ from app.models.attendance_record import AttendanceRecord
 from app.models.face_profile import FaceProfile
 from app.models.user import User
 from app.services.face_attendance import build_face_embedding, get_face_profile_for_user, match_face, match_face_for_user
+from app.services.rbac import user_has_any_role
 
 attendance_bp = Blueprint("attendance", __name__)
 
@@ -18,7 +19,7 @@ def _current_user():
 
 
 def _is_admin_or_hr(user: User | None) -> bool:
-    return bool(user and user.role in ("admin", "hr"))
+    return bool(user and user_has_any_role(user, ("admin", "hr")))
 
 
 def _attendance_day_bounds():

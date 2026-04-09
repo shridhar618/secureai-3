@@ -1,6 +1,8 @@
 import json
 from datetime import datetime
 from pathlib import Path
+
+from app.services.rbac import DEFAULT_ROLE_NAMES, normalize_role_name
 from uuid import uuid4
 
 
@@ -248,8 +250,8 @@ def _normalize_string_list(value: list[str] | str | None) -> list[str]:
 
 
 def _normalize_roles(value: list[str] | str | None) -> list[str]:
-    allowed = {"admin", "hr", "intern"}
-    normalized = [role.lower() for role in _normalize_string_list(value) if role.lower() in allowed]
+    allowed = {normalize_role_name(role) for role in DEFAULT_ROLE_NAMES}
+    normalized = [normalize_role_name(role) for role in _normalize_string_list(value) if normalize_role_name(role) in allowed]
     return normalized or DEFAULT_ALLOWED_ROLES.copy()
 
 

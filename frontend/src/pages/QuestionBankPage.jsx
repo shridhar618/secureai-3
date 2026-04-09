@@ -7,6 +7,7 @@ import {
 
 import api from '../utils/api'
 import { useAuth } from '../context/AuthContext'
+import { formatRoleName, isAdminRole } from '../utils/roles'
 
 const DEFAULT_FORM = {
   question: '',
@@ -18,7 +19,7 @@ const DEFAULT_FORM = {
 
 export default function QuestionBankPage() {
   const { user } = useAuth()
-  const isAdmin = user?.role === 'admin'
+  const isAdmin = isAdminRole(user?.role)
   const [questions, setQuestions] = useState([])
   const [drafts, setDrafts] = useState([])
   const [history, setHistory] = useState([])
@@ -37,24 +38,27 @@ export default function QuestionBankPage() {
   const [importing, setImporting] = useState(false)
   const [importSummary, setImportSummary] = useState('')
   const [queueNote, setQueueNote] = useState({})
+  const [roleOptions, setRoleOptions] = useState(['admin', 'hr', 'intern'])
   const fileInputRef = useRef(null)
 
   const loadAll = async () => {
     setLoading(true)
     setError('')
     try {
-      const requests = [
+      const [questionsRes, historyRes, queueRes, rolesRes, draftsRes] = await Promise.all([
         api.get('/chat/questions'),
         api.get('/chat/questions/history'),
         api.get('/chat/questions/review-queue'),
-      ]
-      if (isAdmin) {
-        requests.push(api.get('/chat/questions/import-drafts'))
-      }
-      const [questionsRes, historyRes, queueRes, draftsRes] = await Promise.all(requests)
+        api.get('/roles'),
+        isAdmin ? api.get('/chat/questions/import-drafts') : Promise.resolve({ data: { drafts: [] } }),
+      ])
       setQuestions(questionsRes.data.questions || [])
       setHistory(historyRes.data.history || [])
       setQueueItems(queueRes.data.items || [])
+      const nextRoleOptions = (rolesRes?.data?.roles || []).map(role => role.name)
+      if (nextRoleOptions.length) {
+        setRoleOptions(nextRoleOptions)
+      }
       const nextDrafts = draftsRes?.data?.drafts || []
       setDrafts(nextDrafts)
       setSelectedDraftId(prev => (
@@ -75,7 +79,7 @@ export default function QuestionBankPage() {
 
   const resetForm = () => {
     setEditingId(null)
-    setForm(DEFAULT_FORM)
+    setForm({ ...DEFAULT_FORM, allowed_roles: roleOptions.slice(0, 3) })
   }
 
   useEffect(() => {
@@ -584,7 +588,7 @@ export default function QuestionBankPage() {
                   className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600"
                 />
                 <div className="flex flex-wrap gap-2">
-                  {['admin', 'hr', 'intern'].map(role => (
+                  {roleOptions.map(role => (
                     <button
                       key={role}
                       onClick={() => setForm(prev => ({
@@ -599,7 +603,7 @@ export default function QuestionBankPage() {
                           : 'bg-white/5 border-white/8 text-slate-300'
                       }`}
                     >
-                      {role}
+                      {formatRoleName(role)}
                     </button>
                   ))}
                 </div>

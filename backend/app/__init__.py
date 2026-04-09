@@ -43,6 +43,7 @@ def create_app():
     from app.routes.users import users_bp
     from app.routes.messages import messages_bp
     from app.routes.attendance import attendance_bp
+    from app.routes.roles import roles_bp
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
     app.register_blueprint(chat_bp, url_prefix="/api")
@@ -50,13 +51,19 @@ def create_app():
     app.register_blueprint(users_bp, url_prefix="/api")
     app.register_blueprint(messages_bp, url_prefix="/api")
     app.register_blueprint(attendance_bp, url_prefix="/api")
+    app.register_blueprint(roles_bp, url_prefix="/api")
 
     # Socket events
     from app.routes import socket_events  # noqa
     import_module("app.models")
 
     with app.app_context():
+        from app.services.rbac import ensure_rbac_ready
+        from app.services.admin_users import ensure_admin_user_schema
+
         db.create_all()
+        ensure_admin_user_schema()
+        ensure_rbac_ready()
         _seed_demo_users()
 
     return app
@@ -64,6 +71,7 @@ def create_app():
 
 def _seed_demo_users():
     from app.models.user import User
+    from app.services.rbac import get_or_fallback_role
     from werkzeug.security import generate_password_hash
 
     demo_users = [
@@ -73,11 +81,13 @@ def _seed_demo_users():
     ]
     for u in demo_users:
         if not User.query.filter_by(username=u["username"]).first():
+            role = get_or_fallback_role(u["role"])
             user = User(
                 username=u["username"],
                 email=u["email"],
                 password_hash=generate_password_hash(u["password"]),
-                role=u["role"],
+                role=role.name if role else u["role"],
+                role_id=role.id if role else None,
             )
             db.session.add(user)
     db.session.commit()

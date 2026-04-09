@@ -44,6 +44,7 @@ from app.services.governance import (
     apply_governance,
     compute_query_sensitivity,
 )
+from app.services.rbac import get_user_role_name, user_has_role
 
 chat_bp = Blueprint("chat", __name__)
 
@@ -57,7 +58,7 @@ def _get_user() -> User | None:
 
 def _require_admin() -> User | None:
     user = _get_user()
-    return user if user and user.role == "admin" else None
+    return user if user and user_has_role(user, "admin") else None
 
 
 @chat_bp.route("/chat", methods=["POST"])
@@ -79,10 +80,11 @@ def chat():
     contextual_query = resolve_contextual_query(_histories[user_id])
 
     raw_response = get_ai_response(_histories[user_id])
-    result = apply_governance(raw_response, query, user.role)
-    matched_question = find_question_match_for_query(contextual_query or query, user.role)
+    role_name = get_user_role_name(user)
+    result = apply_governance(raw_response, query, user)
+    matched_question = find_question_match_for_query(contextual_query or query, role_name)
     if not matched_question:
-        capture_unanswered_question(contextual_query or query, user.role, user.username)
+        capture_unanswered_question(contextual_query or query, role_name, user.username)
 
     _histories[user_id].append({"role": "assistant", "content": raw_response})
     if len(_histories[user_id]) > 20:
@@ -97,7 +99,7 @@ def chat():
     log = AuditLog(
         user_id=user.id,
         username=user.username,
-        role=user.role,
+        role=role_name,
         query=query,
         ai_response=raw_response,
         filtered_response=result.filtered_response,
@@ -122,9 +124,9 @@ def chat():
         "triggered_rules": result.triggered_rules,
         "validator_notes": result.validator_notes,
         "is_high_risk": result.is_high_risk_alert,
-        "role": user.role,
+        "role": role_name,
         "matched_question": serialize_question(matched_question) if matched_question else None,
-        "suggested_questions": get_suggested_questions(contextual_query or query, user.role),
+        "suggested_questions": get_suggested_questions(contextual_query or query, role_name),
     }), 200
 
 
@@ -148,8 +150,9 @@ def get_question_bank():
     favorites = FavoriteQuestion.query.filter_by(user_id=user.id).all()
     favorite_ids = {item.question_id for item in favorites}
     questions = []
-    for item in list_mock_questions(user.role):
-        if user.role == "admin":
+    role_name = get_user_role_name(user)
+    for item in list_mock_questions(role_name):
+        if user_has_role(user, "admin"):
             full_question = get_question(item["id"])
             if full_question:
                 item.update({
@@ -180,8 +183,9 @@ def search_question_bank():
     favorite_ids = {item.question_id for item in favorites}
 
     questions = []
-    for item in search_mock_questions(query, user.role, limit=min(max(limit, 1), 100)):
-        if user.role == "admin":
+    role_name = get_user_role_name(user)
+    for item in search_mock_questions(query, role_name, limit=min(max(limit, 1), 100)):
+        if user_has_role(user, "admin"):
             full_question = get_question(item["id"])
             if full_question:
                 item.update({
@@ -376,9 +380,10 @@ def export_questions():
         return jsonify({"error": "User not found"}), 404
 
     export_format = request.args.get("format", "json")
-    questions = list_mock_questions(user.role)
+    role_name = get_user_role_name(user)
+    questions = list_mock_questions(role_name)
     if export_format == "csv":
-        csv_data = export_mock_questions_csv(user.role)
+        csv_data = export_mock_questions_csv(role_name)
         response = make_response(csv_data)
         response.headers["Content-Type"] = "text/csv; charset=utf-8"
         response.headers["Content-Disposition"] = "attachment; filename=secureai-question-bank.csv"
@@ -430,11 +435,12 @@ def get_favorites():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
+    role_name = get_user_role_name(user)
     favorites = FavoriteQuestion.query.filter_by(user_id=user.id).order_by(FavoriteQuestion.created_at.desc()).all()
     items = []
     for favorite in favorites:
         question = get_question(favorite.question_id)
-        if question and user.role in question["allowed_roles"]:
+        if question and role_name in question["allowed_roles"]:
             data = serialize_question(question)
             data["is_favorite"] = True
             items.append(data)
@@ -448,8 +454,9 @@ def add_favorite(question_id):
     if not user:
         return jsonify({"error": "User not found"}), 404
 
+    role_name = get_user_role_name(user)
     question = get_question(question_id)
-    if not question or user.role not in question["allowed_roles"]:
+    if not question or role_name not in question["allowed_roles"]:
         return jsonify({"error": "Question not available"}), 404
 
     favorite = FavoriteQuestion.query.filter_by(user_id=user.id, question_id=question_id).first()
