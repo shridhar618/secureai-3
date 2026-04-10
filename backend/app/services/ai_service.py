@@ -20,6 +20,9 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
+from app.services.pdf_draft_transform import transform_pdf_text_to_candidate_entries
+from app.services.rbac import DEFAULT_ROLE_NAMES, normalize_role_name
+
 logger = logging.getLogger(__name__)
 
 SYSTEM_PROMPT = (
@@ -33,7 +36,7 @@ QUESTION_BANK_PATH = BASE_DATA_DIR / "mock_question_bank.json"
 QUESTION_HISTORY_PATH = BASE_DATA_DIR / "mock_question_bank_history.json"
 UNANSWERED_QUEUE_PATH = BASE_DATA_DIR / "unanswered_questions.json"
 
-DEFAULT_ALLOWED_ROLES = ["admin", "hr", "intern"]
+DEFAULT_ALLOWED_ROLES = DEFAULT_ROLE_NAMES[:3]
 _TOKEN_PATTERN = re.compile(r"[a-z0-9]+")
 _STOP_WORDS = {
     "a", "an", "and", "are", "can", "do", "does", "for", "here", "how", "i",
@@ -106,8 +109,10 @@ def add_mock_question(
     answer: str,
     category: str = "General",
     keywords: list[str] | None = None,
+    aliases: list[str] | None = None,
     allowed_roles: list[str] | None = None,
     actor: str | None = None,
+    metadata: dict | None = None,
 ) -> dict:
     normalized_question = question.strip()
     normalized_answer = answer.strip()
@@ -125,9 +130,11 @@ def add_mock_question(
         "id": _build_unique_id(normalized_question, question_bank),
         "category": normalized_category,
         "question": normalized_question,
+        "aliases": _normalize_aliases(aliases or []),
         "keywords": normalized_keywords,
         "allowed_roles": normalized_roles,
         "answer": normalized_answer,
+        **_normalize_import_metadata(metadata),
     }
     question_bank.append(entry)
     _write_question_bank(question_bank)
@@ -143,6 +150,7 @@ def update_mock_question(
     answer: str,
     category: str,
     keywords: list[str] | None = None,
+    aliases: list[str] | None = None,
     allowed_roles: list[str] | None = None,
     actor: str | None = None,
 ) -> dict:
@@ -156,9 +164,11 @@ def update_mock_question(
             "id": before["id"],
             "category": category.strip() or "General",
             "question": question.strip(),
+            "aliases": _normalize_aliases(aliases or before.get("aliases", [])),
             "keywords": _normalize_keywords(keywords or _extract_keywords(question)),
             "allowed_roles": _normalize_roles(allowed_roles),
             "answer": answer.strip(),
+            **_normalize_import_metadata(item),
         }
         if not updated["question"]:
             raise ValueError("Question is required")
@@ -208,6 +218,7 @@ def import_mock_questions(entries: list[dict], actor: str | None = None) -> dict
         answer = str(raw.get("answer", "")).strip()
         category = str(raw.get("category", "General")).strip() or "General"
         keywords = raw.get("keywords", [])
+        aliases = raw.get("aliases", [])
         allowed_roles = raw.get("allowed_roles", DEFAULT_ALLOWED_ROLES)
         if not question or not answer:
             raise ValueError("Each imported question must include question and answer")
@@ -220,9 +231,11 @@ def import_mock_questions(entries: list[dict], actor: str | None = None) -> dict
             "id": _build_unique_id(question, question_bank),
             "category": category,
             "question": question,
+            "aliases": _normalize_aliases(aliases or []),
             "keywords": _normalize_keywords(keywords or _extract_keywords(question)),
             "allowed_roles": _normalize_roles(allowed_roles),
             "answer": answer,
+            **_normalize_import_metadata(raw),
         }
         question_bank.append(entry)
         existing_questions.add(normalized_question_key)
@@ -422,16 +435,19 @@ def get_question_bank_analytics(logs: list[dict], feedback_rows: list[dict]) -> 
     }
 
 
-def serialize_question(item: dict, *, include_answer: bool = False) -> dict:
+def serialize_question(item: dict, *, include_answer: bool = False, include_metadata: bool = False) -> dict:
     result = {
         "id": item["id"],
         "category": item["category"],
         "question": item["question"],
+        "aliases": item.get("aliases", []),
         "keywords": item["keywords"],
         "allowed_roles": item["allowed_roles"],
     }
     if include_answer:
         result["answer"] = item["answer"]
+    if include_metadata:
+        result.update(_normalize_import_metadata(item))
     return result
 
 
@@ -709,6 +725,11 @@ def _match_question(query: str, role: str | None = None) -> dict | None:
     if not query_text:
         return None
 
+    # If the prompt exactly names a restricted question or alias, do not fall
+    # through to a fuzzy match on some other allowed item for this role.
+    if _has_restricted_exact_match(query_text, role):
+        return None
+
     ml_match = _match_question_with_ml(query_text, role)
     if ml_match:
         return ml_match
@@ -889,6 +910,20 @@ def _match_question_with_heuristics(query_text: str, role: str | None = None) ->
     return best_match if best_score >= _HEURISTIC_MATCH_THRESHOLD else None
 
 
+def _has_restricted_exact_match(query_text: str, role: str | None = None) -> bool:
+    if not role:
+        return False
+
+    for item in _load_question_bank():
+        if role in item["allowed_roles"]:
+            continue
+        if query_text == item["question"].lower():
+            return True
+        if any(query_text == alias.lower() for alias in item.get("aliases", [])):
+            return True
+    return False
+
+
 def _filter_by_role(question_bank: list[dict], role: str | None) -> list[dict]:
     if not role:
         return question_bank
@@ -904,6 +939,7 @@ def _normalize_question_record(item: dict) -> dict:
         "keywords": _normalize_keywords(item.get("keywords", [])),
         "allowed_roles": _normalize_roles(item.get("allowed_roles", DEFAULT_ALLOWED_ROLES)),
         "answer": str(item["answer"]).strip(),
+        **_normalize_import_metadata(item),
     }
 
 
@@ -990,11 +1026,69 @@ def _normalize_roles(roles: list[str] | None) -> list[str]:
     seen = set()
     raw_roles = roles or DEFAULT_ALLOWED_ROLES
     for role in raw_roles:
-        value = str(role).strip().lower()
-        if value in {"admin", "hr", "intern"} and value not in seen:
+        value = normalize_role_name(role)
+        if value and value not in seen:
             normalized.append(value)
             seen.add(value)
     return normalized or DEFAULT_ALLOWED_ROLES.copy()
+
+
+def _normalize_import_metadata(item: dict | None) -> dict:
+    item = item or {}
+    metadata = {}
+
+    source_type = str(item.get("source_type", "")).strip().lower()
+    if source_type:
+        metadata["source_type"] = source_type
+
+    source_name = str(item.get("source_name", "")).strip()
+    if source_name:
+        metadata["source_name"] = source_name
+
+    source_pages = _normalize_page_numbers(item.get("source_pages", []))
+    if source_pages:
+        metadata["source_pages"] = source_pages
+
+    imported_at = str(item.get("imported_at", "")).strip()
+    if imported_at:
+        metadata["imported_at"] = imported_at
+
+    imported_by = str(item.get("imported_by", "")).strip()
+    if imported_by:
+        metadata["imported_by"] = imported_by
+
+    source_excerpt = str(item.get("source_excerpt", "")).strip()
+    if source_excerpt:
+        metadata["source_excerpt"] = source_excerpt
+
+    access_rationale = str(item.get("access_rationale", "")).strip()
+    if access_rationale:
+        metadata["access_rationale"] = access_rationale
+
+    return metadata
+
+
+def _normalize_page_numbers(value: list[int] | list[str] | str | None) -> list[int]:
+    if isinstance(value, list):
+        items = value
+    elif value is None:
+        items = []
+    else:
+        items = [value]
+
+    normalized = []
+    seen = set()
+    for item in items:
+        try:
+            page = int(item)
+        except (TypeError, ValueError):
+            continue
+        if page <= 0 or page in seen:
+            continue
+        seen.add(page)
+        normalized.append(page)
+    normalized.sort()
+    return normalized
 
 
 def _build_training_text(item: dict) -> str:

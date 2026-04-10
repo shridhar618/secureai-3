@@ -1,250 +1,244 @@
-# 🛡️ SecureAI — Enterprise AI Governance & Communication Platform
+# 1. 🚀 30-Second Pitch
+SecureAI is a policy-aware AI copilot for enterprise teams.
+It answers the same question differently based on role (Intern, HR, Admin), then explains why.
+Every AI interaction is scored, filtered when needed, and logged for admin review.
+This matters because enterprise AI risk is not just bad answers—it is uncontrolled access and zero visibility.
 
-A production-grade, hackathon-ready AI governance platform featuring role-based AI response filtering, real-time private messaging, and a full admin audit dashboard.
+# 2. ❗ Problem
+Enterprise teams are adopting AI quickly, but governance usually lags behind.
 
----
+Common failure modes:
+- Sensitive information can be exposed to the wrong role.
+- Teams cannot explain why an AI answer was blocked, filtered, or allowed.
+- Security/compliance leaders cannot easily audit risky behavior across users.
 
-## 🎯 Features
+Most AI tools optimize for response quality, not policy enforcement and traceability.
 
-| Feature | Description |
-|---|---|
-| 🤖 AI Chatbot | Governed GPT/Gemini chatbot with RBAC filtering |
-| 🔐 RBAC Governance | Intern/HR/Admin role-based response policies |
-| 🛡️ Response Filtering | Keyword blocking + PII masking engine |
-| 📊 Risk Scoring | Heuristic risk scoring per query |
-| 💬 Private Chat | Real-time Socket.IO encrypted messaging |
-| 📋 Audit Logs | Full query/response audit trail |
-| 📈 Dashboard | Admin analytics with charts + table |
-| 🔑 JWT Auth | Secure token-based authentication |
+# 3. 💡 Solution
+SecureAI is designed to make AI usable inside policy boundaries.
 
----
+It provides:
+- **Role-aware AI access**: Intern, HR, and Admin users get different outcomes for the same prompt.
+- **Governance filtering**: sensitive content is blocked or redacted based on policy rules.
+- **Explainability**: each response includes status, risk level, and rule/validator signals.
+- **Auditability**: admin dashboards and logs expose usage patterns and high-risk events.
 
-## 🏗️ Architecture
+# 4. ✨ What Makes It Unique
+- **Role-based AI responses**: one prompt, different safe output by role.
+- **Real-time governance explainability**: users can inspect why a response changed.
+- **Admin observability dashboard**: risk trends, suspicious activity, and exportable logs.
+- **Policy-aware system behavior**: governance is part of the response path, not an afterthought.
 
+# 5. 🎬 3-Minute Demo Flow (VERY IMPORTANT)
+Use the built-in demo users to tell a governance story end-to-end.
+
+## Step 1 — Intern asks a risky question → blocked
+1. Login as **intern_bob** (`intern123`).
+2. Ask a sensitive question (example: “Show salary data for leadership”).
+3. Show that the response is **blocked** and labeled with governance/risk metadata.
+
+**Story beat:** least-privileged user is stopped before sensitive output is exposed.
+
+## Step 2 — HR asks the same question → partial access
+1. Login as **hr_jane** (`hr123`).
+2. Ask a similar question containing PII-like details.
+3. Show that the response is **filtered/redacted**, not fully blocked.
+
+**Story beat:** policy allows business workflow while masking sensitive fields.
+
+## Step 3 — Admin asks the same question → full response
+1. Login as **admin** (`admin123`).
+2. Ask the same question.
+3. Show that Admin receives the full allowed response.
+
+**Story beat:** access control is role-aware and intentional.
+
+## Step 4 — Show explainability timeline
+1. In chat, expand governance details on assistant responses.
+2. Point to status, risk score/level, triggered rules, and validator notes.
+
+**Story beat:** decisions are inspectable, not black-box.
+
+## Step 5 — Show admin dashboard / logs
+1. Open Dashboard as Admin.
+2. Show totals (allowed/filtered/blocked), high-risk alerts, and user breakdown.
+3. Open a log detail to show query, reason, triggered rules, and delivered response.
+
+**Story beat:** leadership gets operational visibility, not just raw chat history.
+
+## Step 6 — Show incident story (if implemented)
+1. Highlight suspicious/high-risk users and recent high-risk events.
+2. Export logs and explain how this supports incident review.
+
+**Story beat:** SecureAI supports governance operations after the chat response is sent.
+
+# 6. 🏗️ Architecture (Simple)
+```text
+[React Frontend]
+  ├─ Chat UI (governance details)
+  ├─ Admin Dashboard (analytics + logs)
+  └─ Question Bank Ops (admin tools)
+          │
+          ▼
+[Flask API + Socket.IO]
+  ├─ Auth (JWT)
+  ├─ Chat Route (AI + governance)
+  ├─ Logs Route (stats/export)
+  └─ Messaging (REST + realtime)
+          │
+          ▼
+[Data Layer]
+  ├─ SQLAlchemy DB (users, messages, audit logs, feedback)
+  ├─ JSON files (question bank/history/review queue)
+  └─ In-memory chat context (per running process)
 ```
-secureai/
-├── backend/
-│   ├── app/
-│   │   ├── __init__.py          # App factory, extensions
-│   │   ├── models/
-│   │   │   ├── user.py          # User model
-│   │   │   ├── audit_log.py     # Audit log model
-│   │   │   └── message.py       # Private message model
-│   │   ├── routes/
-│   │   │   ├── auth.py          # Register/Login/Me
-│   │   │   ├── chat.py          # AI chat endpoint
-│   │   │   ├── logs.py          # Audit logs (admin)
-│   │   │   ├── users.py         # User list
-│   │   │   ├── messages.py      # REST messages
-│   │   │   └── socket_events.py # Socket.IO events
-│   │   └── services/
-│   │       ├── ai_service.py    # OpenAI/Gemini/Mock
-│   │       └── governance.py    # RBAC + NRL filtering
-│   ├── app.py                   # Entry point
-│   └── requirements.txt
-└── frontend/
-    ├── src/
-    │   ├── context/AuthContext.jsx
-    │   ├── utils/api.js
-    │   ├── utils/socket.js
-    │   ├── components/Layout.jsx
-    │   └── pages/
-    │       ├── LoginPage.jsx
-    │       ├── RegisterPage.jsx
-    │       ├── ChatPage.jsx
-    │       ├── PrivateChatPage.jsx
-    │       └── DashboardPage.jsx
-    ├── index.html
-    ├── package.json
-    ├── vite.config.js
-    └── tailwind.config.js
-```
 
----
+**Backend:** Flask, Flask-SocketIO, SQLAlchemy, JWT.  
+**Frontend:** React + Vite + Tailwind.  
+**AI providers:** Gemini/OpenAI or mock fallback mode.
 
-## ⚡ Quick Start
+> Diagram placeholder: add architecture image in `docs/architecture.md` and link here.
 
-### Prerequisites
+# 7. 🧠 How Governance Works
+SecureAI applies governance during response handling:
+
+1. **Generate AI response** (provider or mock mode).
+2. **Compute risk score** from query/response signals.
+3. **Apply role policy**:
+   - Intern: block restricted content categories.
+   - HR: redact sensitive patterns (emails, phone numbers, SSN format, card-like values, etc.).
+   - Admin: full response path.
+4. **Attach explainability metadata** (status, reason, triggered rules, validator notes).
+5. **Write audit log** for downstream analytics and review.
+
+This creates a traceable path from prompt → policy decision → recorded evidence.
+
+# 8. ⚙️ Setup Instructions
+## Prerequisites
 - Python 3.10+
 - Node.js 18+
-- npm / yarn
+- Docker Engine with Docker Compose support (`docker compose`)
 
----
-
-### 1. Backend Setup
+## Quick Start (Local Development)
+Clone the repository, then start the backend and frontend in separate terminals.
 
 ```bash
+git clone https://github.com/surajgojanur/secureai-3.git
+cd secureai-3
+```
+
+### Backend
+```bash
 cd backend
-
-# Create virtual environment
-python -m venv venv
-
-# Activate
-# macOS/Linux:
-source venv/bin/activate
-# Windows:
-venv\Scripts\activate
-
-# Install dependencies
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-
-# Configure environment
 cp .env.example .env
-# Edit .env and add your AI API key (optional - demo mode works without one)
-```
-
-### 2. Configure AI Provider (optional)
-
-Edit `backend/.env`:
-
-```env
-# For Gemini (recommended, free tier available):
-AI_PROVIDER=gemini
-GEMINI_API_KEY=your-gemini-api-key
-
-# OR for OpenAI:
-AI_PROVIDER=openai
-OPENAI_API_KEY=your-openai-api-key
-
-# Leave blank for demo mode (mock responses)
-```
-
-> **Demo mode**: If no API key is set, the chatbot uses smart mock responses. Perfect for demos!
-
-### 3. Run Backend
-
-```bash
-cd backend
 python app.py
-# Server starts on http://localhost:5000
 ```
 
----
-
-### 4. Frontend Setup
-
+### Frontend
 ```bash
 cd frontend
 npm install
 npm run dev
-# App runs on http://localhost:3000
 ```
 
----
+Local URLs:
+- Frontend: `http://127.0.0.1:3000`
+- Backend: `http://127.0.0.1:5001`
 
-## 🎮 Demo Credentials
+Notes:
+- Mock mode is the default local setup
+- No OpenAI or Gemini API key is required for local development
+- Demo users are seeded automatically on first backend start
 
-The app auto-creates these accounts on first run:
+## Docker Setup
+### Run with Docker
+```bash
+docker compose up --build
+```
 
-| Role | Username | Password | Access Level |
-|------|----------|----------|-------------|
-| Admin | `admin` | `admin123` | Full access + Dashboard |
-| HR | `hr_jane` | `hr123` | PII data masked |
-| Intern | `intern_bob` | `intern123` | Sensitive data blocked |
+Docker URLs:
+- Frontend: `http://localhost:3000`
+- Backend: `http://localhost:5001`
 
-Click the **Quick Demo Access** buttons on the login page for one-click login!
+Notes:
+- Compose starts two services: `frontend` and `backend`
+- The frontend proxies `/api` and `/socket.io` to the backend service
+- Mock mode is the default Docker setup
+- No OpenAI or Gemini API key is required for default startup
 
----
+Useful commands:
+```bash
+docker compose up --build -d
+docker compose down
+docker compose down -v
+```
 
-## 🔐 Governance Rules
+`docker compose down -v` removes the persisted Docker volumes for SQLite and JSON-backed app data.
 
-### Intern Role
-- Queries containing: `salary`, `password`, `confidential`, `secret`, `api_key`, `ssn`, `credit card`, etc.
-- **Result**: Entire response blocked → "Access Restricted" message
+## Environment Configuration
+Copy `backend/.env.example` to `backend/.env` for local development.
 
-### HR Role  
-- Emails, phone numbers, SSNs, credit cards, salary figures automatically **masked**
-- **Result**: Response returned with sensitive patterns replaced by `[REDACTED]`
-
-### Admin Role
-- **Full access** to all AI responses
-- Complete audit log visibility
-
----
-
-## 📡 API Endpoints
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/auth/register` | None | Create account |
-| POST | `/api/auth/login` | None | Get JWT token |
-| GET | `/api/auth/me` | JWT | Get current user |
-| POST | `/api/chat` | JWT | Send AI message |
-| POST | `/api/chat/clear` | JWT | Clear chat history |
-| GET | `/api/users` | JWT | List users (for chat) |
-| GET | `/api/messages/<id>` | JWT | Get conversation |
-| POST | `/api/messages` | JWT | Send message |
-| GET | `/api/logs` | Admin JWT | Get audit logs |
-| GET | `/api/logs/stats` | Admin JWT | Get statistics |
-
----
-
-## 🔌 Socket.IO Events
-
-| Event | Direction | Description |
-|-------|-----------|-------------|
-| `connect` | Client→Server | Auth with token query param |
-| `private_message` | Client→Server | Send message `{token, receiver_id, content}` |
-| `typing` | Client→Server | Typing indicator |
-| `stop_typing` | Client→Server | Stop typing |
-| `new_message` | Server→Client | Incoming message |
-| `online_users` | Server→Client | List of online user IDs |
-| `user_typing` | Server→Client | Someone is typing |
-
----
-
-## 🎨 Tech Stack
-
-**Backend**: Flask · Flask-SocketIO · Flask-JWT-Extended · SQLAlchemy · eventlet  
-**Frontend**: React 18 · Vite · Tailwind CSS · Framer Motion · Recharts · Socket.IO Client  
-**AI**: OpenAI GPT-3.5 / Google Gemini 1.5 Flash (configurable)  
-**DB**: SQLite (dev) / PostgreSQL (prod via `DATABASE_URL`)  
-**Auth**: JWT tokens
-
----
-
-## 🚀 Production Deployment
-
-### PostgreSQL
-
+Required for local/mock setup:
 ```env
-DATABASE_URL=postgresql://user:password@localhost/secureai
+SECRET_KEY=your-super-secret-key-change-in-production
+JWT_SECRET_KEY=your-jwt-secret-key-change-in-production
+DATABASE_URL=sqlite:///secureai.db
+AI_PROVIDER=mock
 ```
 
-### Build Frontend
-
-```bash
-cd frontend
-npm run build
-# Serve dist/ with nginx or copy to backend/static/
+Optional provider keys:
+```env
+OPENAI_API_KEY=
+GEMINI_API_KEY=
 ```
 
-### Gunicorn
+Provider notes:
+- `AI_PROVIDER=mock` keeps the app in demo mode with no external AI dependency
+- Set `AI_PROVIDER=openai` and provide `OPENAI_API_KEY` to use OpenAI
+- Set `AI_PROVIDER=gemini` and provide `GEMINI_API_KEY` to use Gemini
+- If keys are missing, mock mode remains the simplest development path
 
-```bash
-pip install gunicorn
-cd backend
-gunicorn --worker-class eventlet -w 1 app:app --bind 0.0.0.0:5000
-```
+## Data & Persistence
+- SQLite database: `backend/instance/secureai.db`
+- JSON-backed app data: `backend/app/data`
+- In Docker, SQLite and JSON-backed data are persisted through named volumes
+- In-memory chat context is process-local and resets when the backend restarts
 
----
+## How Frontend Connects to Backend
+- Local development: the Vite dev server proxies `/api` and `/socket.io` to `http://127.0.0.1:5001`
+- Docker: the frontend container uses the backend service name as the proxy target
 
-## 🏆 Hackathon Highlights
+## Troubleshooting
+- If `python3 -m venv` fails, install your OS package for Python venv support and retry
+- If port `3000` or `5001` is already in use, stop the conflicting process or change the published port
+- If the frontend loads but API calls fail, confirm the backend is running on port `5001`
+- If Docker services are not connecting, check `docker compose ps` and `docker compose logs backend frontend`
 
-1. **Governance Engine**: Novel RBAC+NRL hybrid filtering — not just keyword blocking, but semantic role logic
-2. **Risk Scoring**: Lightweight heuristic risk engine (extensible to ML)
-3. **Real-time**: Full Socket.IO integration with typing indicators
-4. **Production Architecture**: Blueprints, services layer, proper models
-5. **Demo-Ready**: Works out of the box without any API keys
+## Demo users
+- Admin: `admin` / `admin123`
+- HR: `hr_jane` / `hr123`
+- Intern: `intern_bob` / `intern123`
 
----
+# 9. ⚠️ Known Limitations (IMPORTANT)
+- **In-memory chat context**: conversation history is stored in process memory and resets on restart.
+- **JSON-backed queues/history**: question-bank history and unanswered queue are file-based, not DB-backed.
+- **Demo-mode assumptions**: if no provider key is configured, responses use mock mode for reliability.
+- **Dev-first defaults**: current setup prioritizes demo speed over hard production controls.
 
-## 📝 Optional Improvements
+These are intentional tradeoffs for hackathon velocity and clarity.
 
-- [ ] Add ML-based anomaly detection (scikit-learn IsolationForest)
-- [ ] PostgreSQL + Redis for production
-- [ ] Email notifications for high-risk queries
-- [ ] Export audit logs to CSV
-- [ ] Fine-grained permission matrix (not just 3 roles)
-- [ ] Message encryption at rest
-- [ ] Rate limiting per role
+# 10. 🛣️ Future Scope
+- **Scalable storage**: move chat context and review queues into persistent, multi-instance-safe storage.
+- **Policy packs**: reusable policy profiles per department or tenant.
+- **Human-in-the-loop approvals**: escalation flow for borderline high-risk responses.
+- **Richer governance analytics**: trend detection and policy coverage metrics.
+
+# 11. 🏆 Why This Can Win
+- It solves a real enterprise AI pain point: governance + visibility, not just chat quality.
+- The demo is clear and memorable: same prompt, role-based outcomes, auditable decisions.
+- It combines product thinking (UX + workflows) with technical depth (policy engine + observability).
+- It is honest about limitations while showing a credible roadmap.
+- It is demo-ready with seeded users, mock-mode fallback, and end-to-end narrative flow.

@@ -9,6 +9,7 @@ import {
 
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
+import { formatRoleName, getRoleTheme, isAdminRole } from '../utils/roles'
 
 const STATUS_CONFIG = {
   allowed: { icon: ShieldCheck, color: 'text-success', bg: 'bg-success/10 border-success/20', label: 'Allowed' },
@@ -20,12 +21,6 @@ const RISK_CONFIG = {
   low: { color: 'text-success', bg: 'bg-success/10 border-success/20', bar: '#06d6a0' },
   medium: { color: 'text-warn', bg: 'bg-warn/10 border-warn/20', bar: '#ffb703' },
   high: { color: 'text-danger', bg: 'bg-danger/10 border-danger/20', bar: '#ff4d6d' },
-}
-
-const ROLE_INFO = {
-  admin: { color: 'text-purple-400', label: 'ADMIN', desc: 'Full access granted' },
-  hr: { color: 'text-warn', label: 'HR', desc: 'PII data is masked' },
-  intern: { color: 'text-accent', label: 'INTERN', desc: 'Sensitive data blocked' },
 }
 
 function TypingIndicator() {
@@ -140,6 +135,21 @@ function ChatBubble({ msg, onFeedback }) {
           </div>
         </div>
       </motion.div>
+      {!isUser && msg.status === 'blocked' && msg.reason && (
+        <motion.div initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} className="mt-2 ml-11">
+          <div className="rounded-xl border border-danger/25 bg-danger/10 p-3 text-[11px] font-mono text-danger/90 space-y-2">
+            <div className="flex items-center gap-2 font-bold uppercase tracking-wide">
+              <AlertTriangle size={12} />Blocked Request Details
+            </div>
+            <p>{msg.reason}</p>
+            {!!msg.triggered_rules?.length && (
+              <p className="text-danger/80">
+                Triggered by: {msg.triggered_rules.join(', ')}
+              </p>
+            )}
+          </div>
+        </motion.div>
+      )}
       {!isUser && <GovernancePanel msg={msg} />}
       {!isUser && <FeedbackBar msg={msg} onFeedback={onFeedback} />}
     </>
@@ -166,6 +176,7 @@ export default function ChatPage() {
   const [suggestedQuestions, setSuggestedQuestions] = useState([])
   const [questionError, setQuestionError] = useState('')
   const [savingQuestion, setSavingQuestion] = useState(false)
+  const [roleOptions, setRoleOptions] = useState(['admin', 'hr', 'intern'])
   const [questionForm, setQuestionForm] = useState({
     question: '',
     answer: '',
@@ -175,16 +186,21 @@ export default function ChatPage() {
   })
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
-  const roleInfo = ROLE_INFO[user?.role] || ROLE_INFO.intern
+  const roleInfo = getRoleTheme(user?.role)
 
   const loadQuestionData = async () => {
     try {
-      const [questionsRes, favoritesRes] = await Promise.all([
+      const [questionsRes, favoritesRes, rolesRes] = await Promise.all([
         api.get('/chat/questions'),
         api.get('/chat/favorites'),
+        api.get('/roles'),
       ])
       setQuestions(questionsRes.data.questions || [])
       setFavorites(favoritesRes.data.favorites || [])
+      const nextRoleOptions = (rolesRes.data.roles || []).map(role => role.name)
+      if (nextRoleOptions.length) {
+        setRoleOptions(nextRoleOptions)
+      }
     } catch {
       setQuestionError('Unable to load the question bank right now.')
     }
@@ -282,7 +298,13 @@ export default function ChatPage() {
     setQuestionError('')
     try {
       await api.post('/chat/questions', payload)
-      setQuestionForm({ question: '', answer: '', category: 'General', keywords: '', allowed_roles: ['admin', 'hr', 'intern'] })
+      setQuestionForm({
+        question: '',
+        answer: '',
+        category: 'General',
+        keywords: '',
+        allowed_roles: roleOptions.slice(0, 3),
+      })
       loadQuestionData()
     } catch (err) {
       setQuestionError(err?.response?.data?.error || 'Unable to save the new dataset question.')
@@ -373,7 +395,7 @@ export default function ChatPage() {
                 {!filteredQuestions.length && <p className="text-xs text-slate-500 font-mono">No questions matched that search.</p>}
               </div>
 
-              {user?.role === 'admin' && (
+              {isAdminRole(user?.role) && (
                 <div className="pt-2 border-t border-white/6 space-y-2 flex-shrink-0">
                   <p className="text-[10px] font-mono uppercase tracking-wider text-slate-500">Quick add dataset question</p>
                   <input value={questionForm.question} onChange={e => setQuestionForm(prev => ({ ...prev, question: e.target.value }))} placeholder="Question" className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600" />
@@ -383,7 +405,7 @@ export default function ChatPage() {
                     <input value={questionForm.keywords} onChange={e => setQuestionForm(prev => ({ ...prev, keywords: e.target.value }))} placeholder="Keywords, comma separated" className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600" />
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {['admin', 'hr', 'intern'].map(role => (
+                    {roleOptions.map(role => (
                       <button
                         key={role}
                         onClick={() => setQuestionForm(prev => ({
@@ -392,7 +414,7 @@ export default function ChatPage() {
                         }))}
                         className={`px-3 py-2 rounded-xl text-xs border ${questionForm.allowed_roles.includes(role) ? 'bg-accent/10 border-accent/20 text-accent' : 'bg-white/5 border-white/8 text-slate-300'}`}
                       >
-                        {role}
+                        {formatRoleName(role)}
                       </button>
                     ))}
                   </div>

@@ -12,6 +12,8 @@ import re
 from dataclasses import dataclass, field
 from typing import Optional
 
+from app.services.rbac import get_user_permissions, get_user_role_name, normalize_permissions, normalize_role_name
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Constants & rule tables
@@ -110,26 +112,45 @@ class FilterResult:
 # Public API
 # ─────────────────────────────────────────────────────────────────────────────
 
-def apply_governance(response: str, query: str, role: str) -> FilterResult:
+INTENT_PATTERNS = {
+    "project_info": [
+        "project", "roadmap", "feature", "release", "engineering", "developer", "team",
+    ],
+    "hr_info": [
+        "leave", "benefits", "payroll", "employee", "onboarding", "policy", "recruit", "hr",
+    ],
+    "finance_info": [
+        "expense", "invoice", "budget", "finance", "reimbursement", "purchase", "salary",
+    ],
+    "security_info": [
+        "security", "incident", "threat", "vulnerability", "mfa", "access", "audit",
+    ],
+    "attendance_info": [
+        "attendance", "check in", "timesheet", "office hours", "shift",
+    ],
+    "general_info": [],
+}
+
+
+def apply_governance(response: str, query: str, role_input) -> FilterResult:
     risk_score = _compute_risk_score(query, response)
     risk_level = _classify_risk(risk_score)
     validator_notes = _layer2_validator(response, query)
+    role_name = _resolve_role_name(role_input)
+    permissions = _resolve_permissions(role_input)
 
     if validator_notes and risk_level != "high":
         risk_score = min(risk_score + 0.25, 1.0)
         risk_level = _classify_risk(risk_score)
 
-    if role == "intern":
-        result = _filter_intern(response, risk_score, risk_level)
-    elif role == "hr":
-        result = _filter_hr(response, risk_score, risk_level)
-    else:
-        result = FilterResult(
-            filtered_response=response,
-            status="allowed",
-            risk_score=risk_score,
-            risk_level=risk_level,
-        )
+    result = _apply_dynamic_role_filter(
+        query=query,
+        response=response,
+        role_name=role_name,
+        permissions=permissions,
+        risk_score=risk_score,
+        risk_level=risk_level,
+    )
 
     result.validator_notes = validator_notes
     result.is_high_risk_alert = (result.risk_level == "high")
@@ -149,25 +170,31 @@ def compute_query_sensitivity(query: str) -> bool:
 # Layer 1 — Role filters
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _filter_intern(response, risk_score, risk_level):
-    for pattern, label in INTERN_BLOCKED_RULES:
-        if re.search(pattern, response, re.IGNORECASE):
-            explanation = (
-                f"Response blocked because it contains {label}. "
-                f"This information requires HR or Admin clearance."
-            )
-            return FilterResult(
-                filtered_response=(
-                    "Access Restricted: You are not authorized to view this information. "
-                    f"Reason: {explanation}"
-                ),
-                status="blocked",
-                risk_score=max(risk_score, 0.75),
-                risk_level="high",
-                reason=explanation,
-                triggered_rules=[label],
-                is_high_risk_alert=True,
-            )
+def _filter_intern(query, response, risk_score, risk_level):
+    triggered = _detect_intern_blocked_rules(query, response)
+    if triggered:
+        joined = ", ".join(triggered)
+        explanation = (
+            f"This request is blocked because it asks about restricted information: {joined}. "
+            "Intern accounts cannot access confidential, credential, compensation, or regulated personal data."
+        )
+        guidance = (
+            "Why you cannot ask this: your current role does not have permission to view or request that data. "
+            "If you need legitimate access, contact HR or an admin, or ask for a high-level policy summary instead."
+        )
+        return FilterResult(
+            filtered_response=(
+                "Alert: Request blocked by SecureAI policy.\n"
+                f"Why it was blocked: {explanation}\n"
+                f"Why you cannot ask this: {guidance}"
+            ),
+            status="blocked",
+            risk_score=max(risk_score, 0.75),
+            risk_level="high",
+            reason=f"{explanation} {guidance}",
+            triggered_rules=triggered,
+            is_high_risk_alert=True,
+        )
     return FilterResult(
         filtered_response=response,
         status="allowed",
@@ -207,6 +234,73 @@ def _filter_hr(response, risk_score, risk_level):
     )
 
 
+def _apply_dynamic_role_filter(*, query, response, role_name, permissions, risk_score, risk_level):
+    normalized_permissions = normalize_permissions(permissions)
+    if role_name == "admin":
+        return FilterResult(
+            filtered_response=response,
+            status="allowed",
+            risk_score=risk_score,
+            risk_level=risk_level,
+        )
+
+    allowed_intents = normalized_permissions.get("allowed_intents", [])
+    detected_intent = _infer_intent(query, response)
+    if allowed_intents and "*" not in allowed_intents and detected_intent not in allowed_intents:
+        explanation = (
+            f"This request was blocked because the detected intent '{detected_intent}' is not allowed for the "
+            f"'{role_name}' role."
+        )
+        return FilterResult(
+            filtered_response=(
+                "Alert: Request blocked by SecureAI policy.\n"
+                f"Why it was blocked: {explanation}\n"
+                "Ask for information that matches your assigned role scope or contact an administrator."
+            ),
+            status="blocked",
+            risk_score=max(risk_score, 0.72),
+            risk_level="high",
+            reason=explanation,
+            triggered_rules=[f"intent:{detected_intent}"],
+            is_high_risk_alert=True,
+        )
+
+    restricted_matches = _detect_restricted_keywords(
+        query,
+        response,
+        role_name,
+        normalized_permissions.get("restricted_keywords", []),
+    )
+    if restricted_matches:
+        joined = ", ".join(restricted_matches)
+        explanation = (
+            f"This request is blocked because it contains restricted content for the '{role_name}' role: {joined}."
+        )
+        return FilterResult(
+            filtered_response=(
+                "Alert: Request blocked by SecureAI policy.\n"
+                f"Why it was blocked: {explanation}\n"
+                "Request a high-level summary instead or ask an administrator for access review."
+            ),
+            status="blocked",
+            risk_score=max(risk_score, 0.75),
+            risk_level="high",
+            reason=explanation,
+            triggered_rules=restricted_matches,
+            is_high_risk_alert=True,
+        )
+
+    if normalized_permissions.get("mask_pii"):
+        return _filter_hr(response, risk_score, risk_level)
+
+    return FilterResult(
+        filtered_response=response,
+        status="allowed",
+        risk_score=risk_score,
+        risk_level=risk_level,
+    )
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Layer 2 — Validator
 # ─────────────────────────────────────────────────────────────────────────────
@@ -223,6 +317,52 @@ def _layer2_validator(response, query):
                 f"(matched: {', '.join(repr(h) for h in sample)})"
             )
     return notes
+
+
+def _detect_intern_blocked_rules(query, response):
+    combined = f"{query or ''} {response or ''}"
+    triggered = []
+    for pattern, label in INTERN_BLOCKED_RULES:
+        if re.search(pattern, combined, re.IGNORECASE) and label not in triggered:
+            triggered.append(label)
+    return triggered
+
+
+def _detect_restricted_keywords(query, response, role_name: str, restricted_keywords: list[str]):
+    combined = f"{query or ''} {response or ''}".lower()
+    triggered = []
+    for keyword in restricted_keywords:
+        value = normalize_role_name(keyword)
+        if value and value in combined and value not in triggered:
+            triggered.append(value)
+
+    if not triggered and role_name == "intern":
+        triggered.extend(_detect_intern_blocked_rules(query, response))
+
+    return triggered
+
+
+def _infer_intent(query, response):
+    combined = f"{query or ''} {response or ''}".lower()
+    for intent, phrases in INTENT_PATTERNS.items():
+        if any(phrase in combined for phrase in phrases):
+            return intent
+    return "general_info"
+
+
+def _resolve_role_name(role_input) -> str:
+    if isinstance(role_input, str):
+        return normalize_role_name(role_input) or "intern"
+    return get_user_role_name(role_input)
+
+
+def _resolve_permissions(role_input) -> dict:
+    if isinstance(role_input, str):
+        from app.services.rbac import get_or_fallback_role
+
+        role = get_or_fallback_role(role_input)
+        return role.permissions if role else {}
+    return get_user_permissions(role_input)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

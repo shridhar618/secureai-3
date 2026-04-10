@@ -79,3 +79,6 @@ def handle_stop_typing(data):
     sender = _get_user_from_token(token)
     if sender and receiver_id:
         emit("user_stop_typing", {"user_id": sender.id}, to=f"user_{receiver_id}")
+        
+        
+        

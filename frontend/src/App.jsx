@@ -8,6 +8,9 @@ import ChatPage from './pages/ChatPage'
 import PrivateChatPage from './pages/PrivateChatPage'
 import DashboardPage from './pages/DashboardPage'
 import QuestionBankPage from './pages/QuestionBankPage'
+import FaceAttendancePage from './pages/FaceAttendancePage'
+import FaceUnlockPage from './pages/FaceUnlockPage'
+import { isAdminRole } from './utils/roles'
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth()
@@ -21,7 +24,7 @@ function ProtectedRoute({ children, adminOnly = false }) {
     </div>
   )
   if (!user) return <Navigate to="/login" replace />
-  if (adminOnly && user.role !== 'admin') return <Navigate to="/chat" replace />
+  if (adminOnly && !isAdminRole(user.role)) return <Navigate to="/chat" replace />
   return children
 }
 
@@ -39,12 +42,18 @@ function AppRoutes() {
           <WelcomePage />
         </ProtectedRoute>
       } />
+      <Route path="/face-unlock" element={
+        <ProtectedRoute>
+          <FaceUnlockPage />
+        </ProtectedRoute>
+      } />
 
       {/* App shell with sidebar */}
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/welcome" replace />} />
         <Route path="chat"     element={<ChatPage />} />
         <Route path="messages" element={<PrivateChatPage />} />
+        <Route path="attendance" element={<FaceAttendancePage />} />
         <Route path="question-bank" element={
           <ProtectedRoute adminOnly>
             <QuestionBankPage />

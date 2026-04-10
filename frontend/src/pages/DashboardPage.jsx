@@ -5,10 +5,11 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import {
   Activity, AlertTriangle, ChevronLeft, ChevronRight, Download, Eye, EyeOff,
   Filter, Lock, RefreshCw, Search, ShieldAlert, ShieldCheck, TrendingUp,
-  UserX, Zap, Database, MessageCircleQuestion, ThumbsDown,
+  UserX, Zap, Database, MessageCircleQuestion, ThumbsDown, Users, FileText, UserCheck, UserMinus,
 } from 'lucide-react'
 
 import api from '../utils/api'
+import { formatRoleName } from '../utils/roles'
 
 const STATUS_COLORS = { allowed: '#06d6a0', filtered: '#ffb703', blocked: '#ff4d6d' }
 const RISK_COLORS = { low: '#06d6a0', medium: '#ffb703', high: '#ff4d6d' }
@@ -109,6 +110,9 @@ function ExplainDrawer({ log, onClose }) {
 export default function DashboardPage() {
   const [logs, setLogs] = useState([])
   const [stats, setStats] = useState(null)
+  const [roles, setRoles] = useState([])
+  const [adminUsers, setAdminUsers] = useState([])
+  const [userSummary, setUserSummary] = useState(null)
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -119,11 +123,24 @@ export default function DashboardPage() {
   const [filterRisk, setFilterRisk] = useState('')
   const [activeTab, setActiveTab] = useState('overview')
   const [selectedLog, setSelectedLog] = useState(null)
+  const [userSearch, setUserSearch] = useState('')
+  const [userRoleFilter, setUserRoleFilter] = useState('')
+  const [userStatusFilter, setUserStatusFilter] = useState('')
+  const [userMessage, setUserMessage] = useState('')
+  const [userError, setUserError] = useState('')
+  const [roleForm, setRoleForm] = useState({
+    id: null,
+    name: '',
+    permissions: '{\n  "allowed_intents": ["general_info"],\n  "restricted_keywords": [],\n  "mask_pii": false,\n  "can_manage_roles": false\n}',
+  })
+  const [roleMessage, setRoleMessage] = useState('')
+  const [roleError, setRoleError] = useState('')
+  const [savingRole, setSavingRole] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [logsRes, statsRes] = await Promise.all([
+      const [logsRes, statsRes, rolesRes, usersRes] = await Promise.all([
         api.get('/logs', {
           params: {
             page,
@@ -136,14 +153,25 @@ export default function DashboardPage() {
           },
         }),
         api.get('/logs/stats'),
+        api.get('/roles'),
+        api.get('/admin/users', {
+          params: {
+            search: userSearch || undefined,
+            role: userRoleFilter || undefined,
+            status: userStatusFilter || undefined,
+          },
+        }),
       ])
       setLogs(logsRes.data.logs || [])
       setTotalPages(logsRes.data.pages || 1)
       setStats(statsRes.data)
+      setRoles(rolesRes.data.roles || [])
+      setAdminUsers(usersRes.data.users || [])
+      setUserSummary(usersRes.data.summary || null)
     } finally {
       setLoading(false)
     }
-  }, [page, filterUser, filterQuery, filterCategory, filterStatus, filterRisk])
+  }, [page, filterUser, filterQuery, filterCategory, filterStatus, filterRisk, userSearch, userRoleFilter, userStatusFilter])
 
   useEffect(() => {
     fetchData()
@@ -175,7 +203,99 @@ export default function DashboardPage() {
     { id: 'overview', label: 'Overview' },
     { id: 'logs', label: 'Audit Logs' },
     { id: 'threats', label: `Threats ${stats?.suspicious_users?.length ? `(${stats.suspicious_users.length})` : ''}` },
+    { id: 'users', label: `Users ${adminUsers.length ? `(${adminUsers.length})` : ''}` },
+    { id: 'roles', label: `Roles ${roles.length ? `(${roles.length})` : ''}` },
   ]
+
+  const exportUsersPdf = async () => {
+    const res = await api.get('/admin/users/export/pdf', { responseType: 'blob' })
+    const url = window.URL.createObjectURL(res.data)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = 'secureai-admin-user-directory.pdf'
+    link.click()
+    window.URL.revokeObjectURL(url)
+  }
+
+  const updateUser = async (userId, payload, successMessage) => {
+    setUserError('')
+    setUserMessage('')
+    try {
+      await api.patch(`/admin/users/${userId}`, payload)
+      setUserMessage(successMessage)
+      fetchData()
+    } catch (err) {
+      setUserError(err?.response?.data?.error || 'Unable to update that user right now.')
+    }
+  }
+
+  const resetRoleForm = (clearNotices = true) => {
+    setRoleForm({
+      id: null,
+      name: '',
+      permissions: '{\n  "allowed_intents": ["general_info"],\n  "restricted_keywords": [],\n  "mask_pii": false,\n  "can_manage_roles": false\n}',
+    })
+    if (clearNotices) {
+      setRoleError('')
+      setRoleMessage('')
+    }
+  }
+
+  const editRole = role => {
+    setRoleForm({
+      id: role.id,
+      name: role.name,
+      permissions: JSON.stringify(role.permissions || {}, null, 2),
+    })
+    setRoleError('')
+    setRoleMessage('')
+    setActiveTab('roles')
+  }
+
+  const saveRole = async () => {
+    setRoleError('')
+    setRoleMessage('')
+
+    let permissions
+    try {
+      permissions = JSON.parse(roleForm.permissions)
+    } catch {
+      setRoleError('Permissions must be valid JSON.')
+      return
+    }
+
+    setSavingRole(true)
+    try {
+      if (roleForm.id) {
+        await api.put(`/roles/${roleForm.id}`, { name: roleForm.name, permissions })
+        setRoleMessage('Role updated successfully.')
+      } else {
+        await api.post('/roles', { name: roleForm.name, permissions })
+        setRoleMessage('Role created successfully.')
+      }
+      resetRoleForm(false)
+      fetchData()
+    } catch (err) {
+      setRoleError(err?.response?.data?.error || 'Unable to save role right now.')
+    } finally {
+      setSavingRole(false)
+    }
+  }
+
+  const removeRole = async role => {
+    setRoleError('')
+    setRoleMessage('')
+    try {
+      await api.delete(`/roles/${role.id}`)
+      setRoleMessage(`Deleted role ${formatRoleName(role.name)}.`)
+      if (roleForm.id === role.id) {
+        resetRoleForm()
+      }
+      fetchData()
+    } catch (err) {
+      setRoleError(err?.response?.data?.error || 'Unable to delete that role.')
+    }
+  }
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full overflow-y-auto">
@@ -433,6 +553,211 @@ export default function DashboardPage() {
                   </button>
                 ))}
                 {!stats?.recent_high_risk?.length && <p className="text-xs text-slate-500">No high-risk events logged.</p>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'users' && (
+          <>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard icon={Users} label="Visible Users" value={userSummary?.total_users || 0} color="#60a5fa" />
+              <StatCard icon={UserCheck} label="Active Users" value={userSummary?.active_users || 0} color="#06d6a0" />
+              <StatCard icon={UserMinus} label="Inactive Users" value={userSummary?.inactive_users || 0} color="#f97316" />
+              <StatCard icon={ShieldAlert} label="Suspicious Users" value={userSummary?.suspicious_users || 0} color="#ff4d6d" />
+            </div>
+
+            <div className="flex gap-2 flex-wrap items-center">
+              <div className="relative">
+                <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  value={userSearch}
+                  onChange={e => setUserSearch(e.target.value)}
+                  placeholder="Search username or email..."
+                  className="pl-8 pr-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-white placeholder-slate-600 focus:outline-none focus:border-accent/50 text-xs font-mono w-56"
+                />
+              </div>
+              <select value={userRoleFilter} onChange={e => setUserRoleFilter(e.target.value)} className="px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-white focus:outline-none focus:border-accent/50 text-xs">
+                <option value="">All roles</option>
+                {roles.map(role => <option key={role.id} value={role.name}>{formatRoleName(role.name)}</option>)}
+              </select>
+              <select value={userStatusFilter} onChange={e => setUserStatusFilter(e.target.value)} className="px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-white focus:outline-none focus:border-accent/50 text-xs">
+                <option value="">All statuses</option>
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+              <button onClick={exportUsersPdf} className="px-3 py-2 rounded-lg glass-light border border-white/8 text-slate-300 hover:text-accent text-xs font-mono">
+                <FileText size={13} className="inline mr-1.5" />Download PDF
+              </button>
+            </div>
+
+            {userMessage && <div className="px-3 py-2 rounded-xl bg-success/10 border border-success/20 text-xs text-success">{userMessage}</div>}
+            {userError && <div className="px-3 py-2 rounded-xl bg-danger/10 border border-danger/20 text-xs text-danger">{userError}</div>}
+
+            <div className="glass rounded-2xl border border-white/5 overflow-hidden">
+              <div className="px-5 py-3.5 border-b border-white/5 flex items-center justify-between">
+                <p className="text-xs font-bold text-white">Registered Users</p>
+                <span className="text-[10px] text-slate-500 font-mono">Passwords are securely hashed and cannot be exported as plaintext</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-[11px] font-mono">
+                  <thead>
+                    <tr className="border-b border-white/5 text-slate-500 uppercase tracking-wider text-[10px]">
+                      {['User', 'Role', 'Status', 'Registered', 'Last Login', 'Counts', 'Face', 'Actions'].map(header => (
+                        <th key={header} className="px-4 py-3 text-left font-semibold">{header}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {!adminUsers.length ? (
+                      <tr><td colSpan={8} className="text-center py-12 text-slate-600">No users matched the current filters.</td></tr>
+                    ) : adminUsers.map(user => (
+                      <tr key={user.id} className="border-b border-white/5 hover:bg-white/5">
+                        <td className="px-4 py-3">
+                          <div className="space-y-1">
+                            <div className="text-slate-200 font-semibold">{user.username}</div>
+                            <div className="text-slate-500">{user.email}</div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <select
+                            value={user.role}
+                            onChange={e => updateUser(user.id, { role: e.target.value }, `Updated ${user.username}'s role.`)}
+                            className="px-2 py-1.5 rounded-lg bg-bg-800 border border-white/8 text-white text-xs"
+                          >
+                            {roles.map(role => <option key={role.id} value={role.name}>{formatRoleName(role.name)}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span className={`uppercase text-[10px] font-bold px-1.5 py-0.5 rounded border ${user.is_active ? 'text-success bg-success/10 border-success/20' : 'text-warn bg-warn/10 border-warn/20'}`}>
+                            {user.is_active ? 'active' : 'inactive'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-slate-400 whitespace-nowrap">{user.created_at ? format(new Date(user.created_at), 'MM/dd/yyyy HH:mm') : '-'}</td>
+                        <td className="px-4 py-3 text-slate-400 whitespace-nowrap">{user.last_login_at ? format(new Date(user.last_login_at), 'MM/dd/yyyy HH:mm') : 'Never'}</td>
+                        <td className="px-4 py-3 text-slate-400">
+                          <div>OK: {user.login_count || 0}</div>
+                          <div>Fail: {user.failed_login_count || 0}</div>
+                        </td>
+                        <td className="px-4 py-3 text-slate-400">{user.has_face_profile ? 'Registered' : 'No face'}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => updateUser(user.id, { is_active: !user.is_active }, user.is_active ? `Deactivated ${user.username}.` : `Activated ${user.username}.`)}
+                            className={`px-3 py-1.5 rounded-lg border text-xs ${user.is_active ? 'border-danger/20 text-danger' : 'border-success/20 text-success'}`}
+                          >
+                            {user.is_active ? 'Deactivate' : 'Activate'}
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {activeTab === 'roles' && (
+          <div className="grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-4">
+            <div className="glass rounded-2xl p-5 border border-white/5">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-sm font-bold text-white">Enterprise Roles</h3>
+                  <p className="text-[10px] text-slate-500 font-mono mt-1">Create or revise role permissions without code changes</p>
+                </div>
+                <button onClick={resetRoleForm} className="px-3 py-2 rounded-lg glass-light border border-white/8 text-slate-300 text-xs font-mono">
+                  New Role
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {roles.map(role => (
+                  <div key={role.id} className="rounded-2xl border border-white/8 bg-bg-800/60 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-white">{formatRoleName(role.name)}</p>
+                        <p className="text-[10px] font-mono text-slate-500 mt-1">
+                          intents: {(role.allowed_intents || []).join(', ') || 'none'} · keywords: {(role.restricted_keywords || []).length}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => editRole(role)} className="px-3 py-1.5 rounded-lg border border-white/8 text-xs text-slate-300 hover:text-accent hover:border-accent/20">
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => removeRole(role)}
+                          disabled={role.name === 'admin'}
+                          className="px-3 py-1.5 rounded-lg border border-danger/20 text-xs text-danger disabled:opacity-40"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2 text-[11px]">
+                      <div className="rounded-xl bg-white/5 border border-white/8 p-3">
+                        <p className="text-slate-500 font-mono uppercase mb-2">Allowed Intents</p>
+                        <div className="flex flex-wrap gap-2">
+                          {(role.allowed_intents || []).map(intent => (
+                            <span key={intent} className="px-2 py-1 rounded-lg bg-accent/10 border border-accent/20 text-accent">
+                              {intent}
+                            </span>
+                          ))}
+                          {!role.allowed_intents?.length && <span className="text-slate-500">None</span>}
+                        </div>
+                      </div>
+                      <div className="rounded-xl bg-white/5 border border-white/8 p-3">
+                        <p className="text-slate-500 font-mono uppercase mb-2">Restricted Keywords</p>
+                        <div className="flex flex-wrap gap-2">
+                          {(role.restricted_keywords || []).map(keyword => (
+                            <span key={keyword} className="px-2 py-1 rounded-lg bg-danger/10 border border-danger/20 text-danger">
+                              {keyword}
+                            </span>
+                          ))}
+                          {!role.restricted_keywords?.length && <span className="text-slate-500">None</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {!roles.length && <p className="text-xs text-slate-500">No roles available.</p>}
+              </div>
+            </div>
+
+            <div className="glass rounded-2xl p-5 border border-white/5">
+              <h3 className="text-sm font-bold text-white">{roleForm.id ? 'Edit Role' : 'Create Role'}</h3>
+              <p className="text-[10px] text-slate-500 font-mono mt-1 mb-4">Permissions are stored as JSON and applied by the governance layer.</p>
+
+              {roleMessage && <div className="mb-3 px-3 py-2 rounded-xl bg-success/10 border border-success/20 text-xs text-success">{roleMessage}</div>}
+              {roleError && <div className="mb-3 px-3 py-2 rounded-xl bg-danger/10 border border-danger/20 text-xs text-danger">{roleError}</div>}
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1.5">Role Name</label>
+                  <input
+                    value={roleForm.name}
+                    onChange={e => setRoleForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="security analyst"
+                    className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 mb-1.5">Permissions JSON</label>
+                  <textarea
+                    rows={16}
+                    value={roleForm.permissions}
+                    onChange={e => setRoleForm(prev => ({ ...prev, permissions: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600 resize-none font-mono"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <button onClick={saveRole} disabled={savingRole} className="px-4 py-2 rounded-xl bg-accent text-bg-900 text-sm font-semibold disabled:opacity-50">
+                    {savingRole ? 'Saving...' : roleForm.id ? 'Update Role' : 'Create Role'}
+                  </button>
+                  <button onClick={resetRoleForm} className="px-4 py-2 rounded-xl bg-white/5 border border-white/8 text-sm text-slate-300">
+                    Reset
+                  </button>
+                </div>
               </div>
             </div>
           </div>

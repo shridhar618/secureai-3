@@ -11,6 +11,7 @@ from app.models.question_feedback import QuestionFeedback
 from app.models.user import User
 from app.services.ai_service import get_question_bank_analytics, infer_question_category
 from app.services.governance import SUSPICIOUS_QUERY_THRESHOLD
+from app.services.rbac import user_has_role
 
 logs_bp = Blueprint("logs", __name__)
 
@@ -18,7 +19,7 @@ logs_bp = Blueprint("logs", __name__)
 def _require_admin():
     user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
-    return user if user and user.role == "admin" else None
+    return user if user and user_has_role(user, "admin") else None
 
 
 def _serialize_logs(logs: list[AuditLog]) -> list[dict]:

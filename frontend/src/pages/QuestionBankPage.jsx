@@ -6,6 +6,8 @@ import {
 } from 'lucide-react'
 
 import api from '../utils/api'
+import { useAuth } from '../context/AuthContext'
+import { formatRoleName, isAdminRole } from '../utils/roles'
 
 const DEFAULT_FORM = {
   question: '',
@@ -16,14 +18,20 @@ const DEFAULT_FORM = {
 }
 
 export default function QuestionBankPage() {
+  const { user } = useAuth()
+  const isAdmin = isAdminRole(user?.role)
   const [questions, setQuestions] = useState([])
+  const [drafts, setDrafts] = useState([])
   const [history, setHistory] = useState([])
   const [queueItems, setQueueItems] = useState([])
   const [query, setQuery] = useState('')
+  const [draftActionId, setDraftActionId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [searching, setSearching] = useState(false)
   const [error, setError] = useState('')
+  const [statusMessage, setStatusMessage] = useState('')
   const [editingId, setEditingId] = useState(null)
+  const [selectedDraftId, setSelectedDraftId] = useState(null)
   const [form, setForm] = useState(DEFAULT_FORM)
   const [importText, setImportText] = useState('')
   const [importFile, setImportFile] = useState(null)
@@ -36,14 +44,27 @@ export default function QuestionBankPage() {
     setLoading(true)
     setError('')
     try {
-      const [questionsRes, historyRes, queueRes] = await Promise.all([
+      const [questionsRes, historyRes, queueRes, rolesRes, draftsRes] = await Promise.all([
         api.get('/chat/questions'),
         api.get('/chat/questions/history'),
         api.get('/chat/questions/review-queue'),
+        api.get('/roles'),
+        isAdmin ? api.get('/chat/questions/import-drafts') : Promise.resolve({ data: { drafts: [] } }),
       ])
       setQuestions(questionsRes.data.questions || [])
       setHistory(historyRes.data.history || [])
       setQueueItems(queueRes.data.items || [])
+      const nextRoleOptions = (rolesRes?.data?.roles || []).map(role => role.name)
+      if (nextRoleOptions.length) {
+        setRoleOptions(nextRoleOptions)
+      }
+      const nextDrafts = draftsRes?.data?.drafts || []
+      setDrafts(nextDrafts)
+      setSelectedDraftId(prev => (
+        nextDrafts.some(item => item.id === prev)
+          ? prev
+          : nextDrafts[0]?.id || null
+      ))
     } catch (err) {
       setError(err?.response?.data?.error || 'Unable to load question bank tools.')
     } finally {
@@ -57,7 +78,7 @@ export default function QuestionBankPage() {
 
   const resetForm = () => {
     setEditingId(null)
-    setForm(DEFAULT_FORM)
+    setForm({ ...DEFAULT_FORM, allowed_roles: roleOptions.slice(0, 3) })
   }
 
   useEffect(() => {
@@ -193,6 +214,39 @@ export default function QuestionBankPage() {
     }
   }
 
+  const selectedDraft = drafts.find(item => item.id === selectedDraftId) || null
+
+  const reviewDraft = async (draftId, action) => {
+    setError('')
+    setStatusMessage('')
+    setDraftActionId(draftId)
+    try {
+      await api.post(`/chat/questions/import-drafts/${draftId}/${action}`)
+      setStatusMessage(action === 'approve' ? 'Draft approved and added to the active bank.' : 'Draft rejected.')
+      await loadAll()
+    } catch (err) {
+      setError(err?.response?.data?.error || `Unable to ${action} draft right now.`)
+    } finally {
+      setDraftActionId(null)
+    }
+  }
+
+  const formatTimestamp = (value) => {
+    if (!value) return 'Unknown'
+    const parsed = new Date(value)
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString()
+  }
+
+  const renderMetadataChips = (item) => {
+    const chips = []
+    if (item.source_type) chips.push(`type: ${item.source_type}`)
+    if (item.source_name) chips.push(`source: ${item.source_name}`)
+    if (item.imported_by) chips.push(`by: ${item.imported_by}`)
+    if (item.imported_at) chips.push(`at: ${formatTimestamp(item.imported_at)}`)
+    if (item.source_pages?.length) chips.push(`pages: ${item.source_pages.join(', ')}`)
+    return chips
+  }
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="h-full overflow-y-auto">
       <div className="px-6 py-6 space-y-6">
@@ -218,9 +272,158 @@ export default function QuestionBankPage() {
             {error}
           </div>
         )}
+        {statusMessage && (
+          <div className="px-4 py-3 rounded-xl bg-success/10 border border-success/20 text-sm text-success">
+            {statusMessage}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 xl:grid-cols-[1.25fr_0.9fr] gap-6">
           <div className="space-y-6">
+            {isAdmin && (
+              <div className="glass rounded-2xl p-5 border border-white/5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Inbox size={16} className="text-accent" />
+                  <div>
+                    <p className="text-sm font-bold text-white">Imported Drafts</p>
+                    <p className="text-[10px] font-mono text-slate-500">Review PDF-generated draft knowledge entries before activation</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-[0.9fr_1.1fr] gap-4">
+                  <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                    {loading ? (
+                      <p className="text-xs text-slate-500 font-mono">Loading drafts...</p>
+                    ) : drafts.length ? drafts.map(item => (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelectedDraftId(item.id)}
+                        className={`w-full text-left rounded-2xl border p-4 transition-colors ${
+                          selectedDraftId === item.id
+                            ? 'bg-accent/10 border-accent/20'
+                            : 'bg-bg-800/70 border-white/8 hover:border-accent/20'
+                        }`}
+                      >
+                        <p className="text-sm font-semibold text-white line-clamp-2">{item.question}</p>
+                        <p className="mt-1 text-[10px] font-mono text-slate-500">
+                          {item.category} · {item.source_type} · {item.review_status}
+                        </p>
+                        <p className="mt-2 text-[10px] font-mono text-slate-600">
+                          {item.source_name || 'unknown source'}
+                        </p>
+                      </button>
+                    )) : (
+                      <p className="text-xs text-slate-500 font-mono">No imported drafts waiting for review.</p>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl bg-bg-800/70 border border-white/8 p-4 min-h-[320px]">
+                    {selectedDraft ? (
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-sm font-semibold text-white">{selectedDraft.question}</p>
+                          <p className="mt-1 text-[10px] font-mono text-slate-500">
+                            {selectedDraft.category} · roles: {(selectedDraft.allowed_roles || []).join(', ')}
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-[11px]">
+                          <div className="rounded-xl bg-bg-900/60 border border-white/6 p-3">
+                            <p className="text-slate-500 font-mono uppercase">Source</p>
+                            <p className="text-slate-200 mt-1 break-all">{selectedDraft.source_name || 'Unknown'}</p>
+                            <p className="text-slate-500 mt-1">{selectedDraft.source_type}</p>
+                            {selectedDraft.source_pages?.length ? (
+                              <p className="text-slate-500 mt-1">pages {selectedDraft.source_pages.join(', ')}</p>
+                            ) : null}
+                          </div>
+                          <div className="rounded-xl bg-bg-900/60 border border-white/6 p-3">
+                            <p className="text-slate-500 font-mono uppercase">Review</p>
+                            <p className="text-slate-200 mt-1">{selectedDraft.review_status}</p>
+                            <p className="text-slate-500 mt-1">{formatTimestamp(selectedDraft.imported_at)}</p>
+                            {selectedDraft.imported_by ? (
+                              <p className="text-slate-500 mt-1">imported by {selectedDraft.imported_by}</p>
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {(selectedDraft.source_excerpt || selectedDraft.access_rationale) && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px]">
+                            {selectedDraft.source_excerpt ? (
+                              <div className="rounded-xl bg-bg-900/60 border border-white/6 p-3">
+                                <p className="text-slate-500 font-mono uppercase">Source Excerpt</p>
+                                <p className="text-slate-200 mt-1 whitespace-pre-wrap">{selectedDraft.source_excerpt}</p>
+                              </div>
+                            ) : null}
+                            {selectedDraft.access_rationale ? (
+                              <div className="rounded-xl bg-bg-900/60 border border-white/6 p-3">
+                                <p className="text-slate-500 font-mono uppercase">Access Rationale</p>
+                                <p className="text-slate-200 mt-1 whitespace-pre-wrap">{selectedDraft.access_rationale}</p>
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
+
+                        <div>
+                          <p className="text-[10px] font-mono uppercase text-slate-500 mb-2">Answer</p>
+                          <div className="rounded-xl bg-bg-900/60 border border-white/6 p-3 text-sm text-slate-200 whitespace-pre-wrap">
+                            {selectedDraft.answer}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div>
+                            <p className="text-[10px] font-mono uppercase text-slate-500 mb-2">Keywords</p>
+                            <div className="flex flex-wrap gap-2">
+                              {(selectedDraft.keywords || []).map(keyword => (
+                                <span key={keyword} className="px-2 py-1 rounded-lg text-[10px] font-mono bg-accent/10 text-accent border border-accent/20">
+                                  {keyword}
+                                </span>
+                              ))}
+                              {!selectedDraft.keywords?.length && <span className="text-xs text-slate-500">No keywords</span>}
+                            </div>
+                          </div>
+                          <div>
+                            <p className="text-[10px] font-mono uppercase text-slate-500 mb-2">Aliases</p>
+                            <div className="flex flex-wrap gap-2">
+                              {(selectedDraft.aliases || []).map(alias => (
+                                <span key={alias} className="px-2 py-1 rounded-lg text-[10px] font-mono bg-white/5 text-slate-300 border border-white/8">
+                                  {alias}
+                                </span>
+                              ))}
+                              {!selectedDraft.aliases?.length && <span className="text-xs text-slate-500">No aliases</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        {selectedDraft.review_status === 'draft' && (
+                          <div className="flex gap-2 pt-2">
+                            <button
+                              onClick={() => reviewDraft(selectedDraft.id, 'approve')}
+                              disabled={draftActionId === selectedDraft.id}
+                              className="px-4 py-2 rounded-xl bg-success/10 border border-success/20 text-sm text-success disabled:opacity-50"
+                            >
+                              <CheckCircle2 size={13} className="inline mr-1.5" />
+                              {draftActionId === selectedDraft.id ? 'Working...' : 'Approve'}
+                            </button>
+                            <button
+                              onClick={() => reviewDraft(selectedDraft.id, 'reject')}
+                              disabled={draftActionId === selectedDraft.id}
+                              className="px-4 py-2 rounded-xl bg-danger/10 border border-danger/20 text-sm text-danger disabled:opacity-50"
+                            >
+                              <CircleSlash size={13} className="inline mr-1.5" />
+                              {draftActionId === selectedDraft.id ? 'Working...' : 'Reject'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-slate-500 font-mono">Select a draft to inspect its details.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="glass rounded-2xl p-5 border border-white/5">
               <div className="flex items-center justify-between gap-3 mb-4">
                 <div className="flex items-center gap-2">
@@ -284,6 +487,24 @@ export default function QuestionBankPage() {
                         </span>
                       ))}
                     </div>
+                    {isAdmin && renderMetadataChips(item).length > 0 && (
+                      <div className="space-y-2">
+                        <p className="text-[10px] font-mono uppercase text-slate-500">Import Metadata</p>
+                        <div className="flex flex-wrap gap-2">
+                          {renderMetadataChips(item).map(chip => (
+                            <span key={chip} className="px-2 py-1 rounded-lg text-[10px] font-mono bg-white/5 text-slate-300 border border-white/8">
+                              {chip}
+                            </span>
+                          ))}
+                        </div>
+                        {item.source_excerpt ? (
+                          <p className="text-xs text-slate-400 line-clamp-3">{item.source_excerpt}</p>
+                        ) : null}
+                        {item.access_rationale ? (
+                          <p className="text-xs text-slate-500">Access rationale: {item.access_rationale}</p>
+                        ) : null}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {!loading && !searching && !questions.length && (
@@ -364,7 +585,7 @@ export default function QuestionBankPage() {
                   className="w-full px-3 py-2 rounded-xl bg-bg-800 border border-white/8 text-sm text-white placeholder-slate-600"
                 />
                 <div className="flex flex-wrap gap-2">
-                  {['admin', 'hr', 'intern'].map(role => (
+                  {roleOptions.map(role => (
                     <button
                       key={role}
                       onClick={() => setForm(prev => ({
@@ -379,7 +600,7 @@ export default function QuestionBankPage() {
                           : 'bg-white/5 border-white/8 text-slate-300'
                       }`}
                     >
-                      {role}
+                      {formatRoleName(role)}
                     </button>
                   ))}
                 </div>
