@@ -10,13 +10,15 @@ import DashboardPage from './pages/DashboardPage'
 import QuestionBankPage from './pages/QuestionBankPage'
 import FaceAttendancePage from './pages/FaceAttendancePage'
 import FaceUnlockPage from './pages/FaceUnlockPage'
+import GhostModePage from './pages/GhostModePage'
+import AttackSimPage from './pages/AttackSimPage'
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { user, loading } = useAuth()
   if (loading) return (
     <div className="flex h-full items-center justify-center bg-bg-900">
       <div className="flex gap-2">
-        {[0,1,2].map(i => (
+        {[0, 1, 2].map(i => (
           <div key={i} className="typing-dot" style={{ animationDelay: `${i * 0.2}s` }} />
         ))}
       </div>
@@ -32,7 +34,7 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Public routes — redirect to welcome if already logged in */}
-      <Route path="/login"    element={user ? <Navigate to="/welcome" replace /> : <LoginPage />} />
+      <Route path="/login" element={user ? <Navigate to="/welcome" replace /> : <LoginPage />} />
       <Route path="/register" element={user ? <Navigate to="/welcome" replace /> : <RegisterPage />} />
 
       {/* Welcome splash — shown right after login */}
@@ -50,7 +52,7 @@ function AppRoutes() {
       {/* App shell with sidebar */}
       <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
         <Route index element={<Navigate to="/welcome" replace />} />
-        <Route path="chat"     element={<ChatPage />} />
+        <Route path="chat" element={<ChatPage />} />
         <Route path="messages" element={<PrivateChatPage />} />
         <Route path="attendance" element={<FaceAttendancePage />} />
         <Route path="question-bank" element={
@@ -64,6 +66,18 @@ function AppRoutes() {
           </ProtectedRoute>
         } />
       </Route>
+
+      <Route path="ghost-mode" element={
+        <ProtectedRoute adminOnly>
+          <GhostModePage />
+        </ProtectedRoute>
+      } />
+
+      <Route path="attack-sim" element={
+        <ProtectedRoute adminOnly>
+          <AttackSimPage />
+        </ProtectedRoute>
+      } />
 
       <Route path="*" element={<Navigate to="/welcome" replace />} />
     </Routes>
