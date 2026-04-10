@@ -38,7 +38,6 @@ export default function QuestionBankPage() {
   const [importing, setImporting] = useState(false)
   const [importSummary, setImportSummary] = useState('')
   const [queueNote, setQueueNote] = useState({})
-  const [roleOptions, setRoleOptions] = useState(['admin', 'hr', 'intern'])
   const fileInputRef = useRef(null)
 
   const loadAll = async () => {
@@ -75,7 +74,7 @@ export default function QuestionBankPage() {
 
   useEffect(() => {
     loadAll()
-  }, [isAdmin])
+  }, [])
 
   const resetForm = () => {
     setEditingId(null)
@@ -176,11 +175,9 @@ export default function QuestionBankPage() {
       }
 
       const importedCount = response?.data?.count || 0
-      const draftCount = response?.data?.draft_count || 0
       const duplicateCount = response?.data?.skipped_duplicates?.length || 0
       const sourceType = response?.data?.metadata?.source_type
       const parts = [`Imported ${importedCount} question${importedCount === 1 ? '' : 's'}`]
-      if (draftCount) parts.push(`created ${draftCount} draft${draftCount === 1 ? '' : 's'}`)
       if (sourceType) parts.push(`from ${sourceType.toUpperCase()}`)
       if (duplicateCount) parts.push(`skipped ${duplicateCount} duplicate${duplicateCount === 1 ? '' : 's'}`)
       setImportSummary(parts.join(' · '))

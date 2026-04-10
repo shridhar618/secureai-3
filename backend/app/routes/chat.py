@@ -183,21 +183,11 @@ def search_question_bank():
     favorite_ids = {item.question_id for item in favorites}
 
     questions = []
-    role_name = get_user_role_name(user)
-    for item in search_mock_questions(query, role_name, limit=min(max(limit, 1), 100)):
-        if user_has_role(user, "admin"):
+    for item in search_mock_questions(query, user.role, limit=min(max(limit, 1), 100)):
+        if user.role == "admin":
             full_question = get_question(item["id"])
             if full_question:
-                item.update({
-                    "answer": full_question["answer"],
-                    "source_type": full_question.get("source_type"),
-                    "source_name": full_question.get("source_name"),
-                    "source_pages": full_question.get("source_pages"),
-                    "imported_at": full_question.get("imported_at"),
-                    "imported_by": full_question.get("imported_by"),
-                    "source_excerpt": full_question.get("source_excerpt"),
-                    "access_rationale": full_question.get("access_rationale"),
-                })
+                item["answer"] = full_question["answer"]
         item["is_favorite"] = item["id"] in favorite_ids
         questions.append(item)
     return jsonify({"questions": questions, "query": query}), 200
@@ -277,23 +267,7 @@ def import_questions():
             if not file_obj or not file_obj.filename:
                 return jsonify({"error": "Please choose a .json or .pdf file to import"}), 400
             entries, metadata = extract_questions_from_uploaded_file(file_obj.filename, file_obj.read())
-            if metadata.get("source_type") == "pdf":
-                drafts = append_imported_knowledge_drafts(
-                    entries,
-                    source_type="pdf",
-                    source_name=file_obj.filename,
-                    source_pages=metadata.get("source_pages", []),
-                    imported_by=admin.username,
-                )
-                result = {
-                    "count": len(drafts),
-                    "draft_count": len(drafts),
-                    "questions": [],
-                    "drafts": drafts,
-                    "skipped_duplicates": [],
-                }
-            else:
-                result = import_mock_questions(entries, actor=admin.username)
+            result = import_mock_questions(entries, actor=admin.username)
             result["metadata"] = metadata
         else:
             data = request.get_json() or {}

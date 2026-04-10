@@ -609,25 +609,19 @@ def _extract_questions_from_pdf_bytes(file_bytes: bytes) -> tuple[list[dict], di
             "source_type": "pdf",
             "parse_mode": "embedded_json",
             "page_count": len(reader.pages),
-            "source_pages": list(range(1, len(reader.pages) + 1)),
         }
 
     parsed = _parse_structured_pdf_text(extracted_text)
-    if parsed:
-        return parsed, {
-            "source_type": "pdf",
-            "parse_mode": "labeled_text",
-            "page_count": len(reader.pages),
-            "source_pages": list(range(1, len(reader.pages) + 1)),
-            "detected_count": len(parsed),
-        }
+    if not parsed:
+        raise ValueError(
+            "Could not detect question records in the PDF. Use labeled fields like 'Question:' and 'Answer:' or embed JSON."
+        )
 
-    transformed, metadata = transform_pdf_text_to_candidate_entries(extracted_text)
-    return transformed, {
+    return parsed, {
         "source_type": "pdf",
+        "parse_mode": "labeled_text",
         "page_count": len(reader.pages),
-        "source_pages": list(range(1, len(reader.pages) + 1)),
-        **metadata,
+        "detected_count": len(parsed),
     }
 
 

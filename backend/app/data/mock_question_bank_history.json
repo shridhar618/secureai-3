@@ -62,5 +62,248 @@
       ],
       "answer": "5 cr"
     }
+  },
+  {
+    "timestamp": "2026-04-07T17:40:18.600514",
+    "action": "import",
+    "question_id": "bulk-import-smoke-test",
+    "actor": "admin",
+    "before": null,
+    "after": {
+      "id": "bulk-import-smoke-test",
+      "category": "Testing",
+      "question": "Bulk import smoke test?",
+      "keywords": [
+        "smoke",
+        "import"
+      ],
+      "allowed_roles": [
+        "admin"
+      ],
+      "answer": "Smoke test answer"
+    }
+  },
+  {
+    "timestamp": "2026-04-07T17:42:51.219579",
+    "action": "create",
+    "question_id": "direct-add-smoke-test",
+    "actor": "admin",
+    "before": null,
+    "after": {
+      "id": "direct-add-smoke-test",
+      "category": "Testing",
+      "question": "Direct add smoke test?",
+      "keywords": [
+        "direct",
+        "add"
+      ],
+      "allowed_roles": [
+        "admin",
+        "hr"
+      ],
+      "answer": "Direct add works."
+    }
+  },
+  {
+    "timestamp": "2026-04-07T17:49:41.522457",
+    "action": "import",
+    "question_id": "what-is-the-company-leave-policy",
+    "actor": "admin",
+    "before": null,
+    "after": {
+      "id": "what-is-the-company-leave-policy",
+      "category": "HR",
+      "question": "What is the company leave policy?",
+      "keywords": [
+        "leave",
+        "policy",
+        "vacation"
+      ],
+      "allowed_roles": [
+        "admin",
+        "hr",
+        "intern"
+      ],
+      "answer": "Employees are entitled to 20 paid leaves per year including casual and sick leave."
+    }
+  },
+  {
+    "timestamp": "2026-04-07T17:49:41.525100",
+    "action": "import",
+    "question_id": "how-can-i-reset-my-password",
+    "actor": "admin",
+    "before": null,
+    "after": {
+      "id": "how-can-i-reset-my-password",
+      "category": "IT",
+      "question": "How can I reset my password?",
+      "keywords": [
+        "password",
+        "reset",
+        "login"
+      ],
+      "allowed_roles": [
+        "admin",
+        "hr",
+        "intern"
+      ],
+      "answer": "Go to the login page and click on 'Forgot Password' to reset it via email."
+    }
+  },
+  {
+    "timestamp": "2026-04-07T17:49:41.526507",
+    "action": "import",
+    "question_id": "what-is-the-internship-duration",
+    "actor": "admin",
+    "before": null,
+    "after": {
+      "id": "what-is-the-internship-duration",
+      "category": "HR",
+      "question": "What is the internship duration?",
+      "keywords": [
+        "internship",
+        "duration"
+      ],
+      "allowed_roles": [
+        "admin",
+        "hr",
+        "intern"
+      ],
+      "answer": "The internship duration is typically 3 to 6 months depending on the role."
+    }
+  },
+  {
+    "timestamp": "2026-04-07T17:49:41.531191",
+    "action": "import",
+    "question_id": "who-can-access-financial-reports",
+    "actor": "admin",
+    "before": null,
+    "after": {
+      "id": "who-can-access-financial-reports",
+      "category": "Finance",
+      "question": "Who can access financial reports?",
+      "keywords": [
+        "finance",
+        "reports",
+        "access"
+      ],
+      "allowed_roles": [
+        "admin"
+      ],
+      "answer": "Only admins and finance team members are allowed to access financial reports."
+    }
+  },
+  {
+    "timestamp": "2026-04-07T17:49:41.534182",
+    "action": "import",
+    "question_id": "what-technologies-are-used-in-this-company",
+    "actor": "admin",
+    "before": null,
+    "after": {
+      "id": "what-technologies-are-used-in-this-company",
+      "category": "Technical",
+      "question": "What technologies are used in this company?",
+      "keywords": [
+        "technology",
+        "stack",
+        "development"
+      ],
+      "allowed_roles": [
+        "admin",
+        "hr",
+        "intern"
+      ],
+      "answer": "We use Python, Node.js, React, and PostgreSQL for development."
+    }
+  },
+  {
+    "timestamp": "2026-04-07T17:49:41.534997",
+    "action": "import",
+    "question_id": "how-to-apply-for-leave",
+    "actor": "admin",
+    "before": null,
+    "after": {
+      "id": "how-to-apply-for-leave",
+      "category": "HR",
+      "question": "How to apply for leave?",
+      "keywords": [
+        "apply",
+        "leave",
+        "portal"
+      ],
+      "allowed_roles": [
+        "admin",
+        "hr",
+        "intern"
+      ],
+      "answer": "You can apply for leave through the employee portal under the leave section."
+    }
+  },
+  {
+    "timestamp": "2026-04-07T17:49:41.535672",
+    "action": "import",
+    "question_id": "what-is-the-working-time",
+    "actor": "admin",
+    "before": null,
+    "after": {
+      "id": "what-is-the-working-time",
+      "category": "HR",
+      "question": "What is the working time?",
+      "keywords": [
+        "working hours",
+        "time"
+      ],
+      "allowed_roles": [
+        "admin",
+        "hr",
+        "intern"
+      ],
+      "answer": "The standard working time is 9 AM to 6 PM from Monday to Friday."
+    }
+  },
+  {
+    "timestamp": "2026-04-07T17:49:41.536956",
+    "action": "import",
+    "question_id": "how-to-contact-hr",
+    "actor": "admin",
+    "before": null,
+    "after": {
+      "id": "how-to-contact-hr",
+      "category": "HR",
+      "question": "How to contact HR?",
+      "keywords": [
+        "contact",
+        "hr"
+      ],
+      "allowed_roles": [
+        "admin",
+        "hr",
+        "intern"
+      ],
+      "answer": "You can contact HR via hr@company.com or visit the HR office."
+    }
+  },
+  {
+    "timestamp": "2026-04-07T17:51:43.772483",
+    "action": "import",
+    "question_id": "how-to-access-company-resources",
+    "actor": "admin",
+    "before": null,
+    "after": {
+      "id": "how-to-access-company-resources",
+      "category": "General",
+      "question": "How to access company resources?",
+      "keywords": [
+        "access",
+        "company",
+        "resources"
+      ],
+      "allowed_roles": [
+        "admin",
+        "hr",
+        "intern"
+      ],
+      "answer": "Use your employee login credentials to access internal resources."
+    }
   }
 ]
