@@ -1,6 +1,7 @@
 from app.services.ai_service import (
     get_ai_response,
     list_mock_questions,
+    search_mock_questions,
     add_mock_question,
     update_mock_question,
     delete_mock_question,
@@ -22,6 +23,7 @@ from app.services.governance import apply_governance
 __all__ = [
     "get_ai_response",
     "list_mock_questions",
+    "search_mock_questions",
     "add_mock_question",
     "update_mock_question",
     "delete_mock_question",

@@ -781,5 +781,171 @@
       "admin"
     ],
     "answer": "Admins can export audit activity from the dashboard export action to share governance evidence with compliance, audit, or leadership stakeholders."
+  },
+  {
+    "id": "bulk-import-smoke-test",
+    "category": "Testing",
+    "question": "Bulk import smoke test?",
+    "keywords": [
+      "smoke",
+      "import"
+    ],
+    "allowed_roles": [
+      "admin"
+    ],
+    "answer": "Smoke test answer"
+  },
+  {
+    "id": "direct-add-smoke-test",
+    "category": "Testing",
+    "question": "Direct add smoke test?",
+    "keywords": [
+      "direct",
+      "add"
+    ],
+    "allowed_roles": [
+      "admin",
+      "hr"
+    ],
+    "answer": "Direct add works."
+  },
+  {
+    "id": "what-is-the-company-leave-policy",
+    "category": "HR",
+    "question": "What is the company leave policy?",
+    "keywords": [
+      "leave",
+      "policy",
+      "vacation"
+    ],
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ],
+    "answer": "Employees are entitled to 20 paid leaves per year including casual and sick leave."
+  },
+  {
+    "id": "how-can-i-reset-my-password",
+    "category": "IT",
+    "question": "How can I reset my password?",
+    "keywords": [
+      "password",
+      "reset",
+      "login"
+    ],
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ],
+    "answer": "Go to the login page and click on 'Forgot Password' to reset it via email."
+  },
+  {
+    "id": "what-is-the-internship-duration",
+    "category": "HR",
+    "question": "What is the internship duration?",
+    "keywords": [
+      "internship",
+      "duration"
+    ],
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ],
+    "answer": "The internship duration is typically 3 to 6 months depending on the role."
+  },
+  {
+    "id": "who-can-access-financial-reports",
+    "category": "Finance",
+    "question": "Who can access financial reports?",
+    "keywords": [
+      "finance",
+      "reports",
+      "access"
+    ],
+    "allowed_roles": [
+      "admin"
+    ],
+    "answer": "Only admins and finance team members are allowed to access financial reports."
+  },
+  {
+    "id": "what-technologies-are-used-in-this-company",
+    "category": "Technical",
+    "question": "What technologies are used in this company?",
+    "keywords": [
+      "technology",
+      "stack",
+      "development"
+    ],
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ],
+    "answer": "We use Python, Node.js, React, and PostgreSQL for development."
+  },
+  {
+    "id": "how-to-apply-for-leave",
+    "category": "HR",
+    "question": "How to apply for leave?",
+    "keywords": [
+      "apply",
+      "leave",
+      "portal"
+    ],
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ],
+    "answer": "You can apply for leave through the employee portal under the leave section."
+  },
+  {
+    "id": "what-is-the-working-time",
+    "category": "HR",
+    "question": "What is the working time?",
+    "keywords": [
+      "working hours",
+      "time"
+    ],
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ],
+    "answer": "The standard working time is 9 AM to 6 PM from Monday to Friday."
+  },
+  {
+    "id": "how-to-contact-hr",
+    "category": "HR",
+    "question": "How to contact HR?",
+    "keywords": [
+      "contact",
+      "hr"
+    ],
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ],
+    "answer": "You can contact HR via hr@company.com or visit the HR office."
+  },
+  {
+    "id": "how-to-access-company-resources",
+    "category": "General",
+    "question": "How to access company resources?",
+    "keywords": [
+      "access",
+      "company",
+      "resources"
+    ],
+    "allowed_roles": [
+      "admin",
+      "hr",
+      "intern"
+    ],
+    "answer": "Use your employee login credentials to access internal resources."
   }
 ]

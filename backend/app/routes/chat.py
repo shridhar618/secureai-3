@@ -15,6 +15,7 @@ from app.services.ai_service import (
     add_mock_question,
     capture_unanswered_question,
     delete_mock_question,
+    extract_questions_from_uploaded_file,
     export_mock_questions_csv,
     find_question_match_for_query,
     get_ai_response,
@@ -22,6 +23,7 @@ from app.services.ai_service import (
     get_suggested_questions,
     import_mock_questions,
     list_mock_questions,
+    search_mock_questions,
     list_question_history,
     list_unanswered_questions,
     resolve_contextual_query,
@@ -148,6 +150,29 @@ def get_question_bank():
     return jsonify({"questions": questions}), 200
 
 
+@chat_bp.route("/chat/questions/search", methods=["GET"])
+@jwt_required()
+def search_question_bank():
+    user = _get_user()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    query = request.args.get("q", "").strip()
+    limit = request.args.get("limit", default=25, type=int) or 25
+    favorites = FavoriteQuestion.query.filter_by(user_id=user.id).all()
+    favorite_ids = {item.question_id for item in favorites}
+
+    questions = []
+    for item in search_mock_questions(query, user.role, limit=min(max(limit, 1), 100)):
+        if user.role == "admin":
+            full_question = get_question(item["id"])
+            if full_question:
+                item["answer"] = full_question["answer"]
+        item["is_favorite"] = item["id"] in favorite_ids
+        questions.append(item)
+    return jsonify({"questions": questions, "query": query}), 200
+
+
 @chat_bp.route("/chat/questions", methods=["POST"])
 @jwt_required()
 def create_question():
@@ -216,9 +241,17 @@ def import_questions():
     if not admin:
         return jsonify({"error": "Admin access required"}), 403
 
-    data = request.get_json() or {}
     try:
-        result = import_mock_questions(data.get("questions", []), actor=admin.username)
+        if "file" in request.files:
+            file_obj = request.files["file"]
+            if not file_obj or not file_obj.filename:
+                return jsonify({"error": "Please choose a .json or .pdf file to import"}), 400
+            entries, metadata = extract_questions_from_uploaded_file(file_obj.filename, file_obj.read())
+            result = import_mock_questions(entries, actor=admin.username)
+            result["metadata"] = metadata
+        else:
+            data = request.get_json() or {}
+            result = import_mock_questions(data.get("questions", []), actor=admin.username)
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400
     return jsonify(result), 201
