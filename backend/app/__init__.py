@@ -6,12 +6,30 @@ from flask_socketio import SocketIO
 from dotenv import load_dotenv
 import os
 from importlib import import_module
+import sys
 
 load_dotenv()
 
 db = SQLAlchemy()
 jwt = JWTManager()
 socketio = SocketIO()
+
+
+def get_socketio_async_mode():
+    preferred_mode = os.getenv("SOCKETIO_ASYNC_MODE", "").strip().lower()
+    if preferred_mode:
+        return preferred_mode
+
+    # eventlet currently breaks on Python 3.13+, so fall back automatically.
+    if sys.version_info >= (3, 13):
+        return "threading"
+
+    try:
+        import eventlet  # noqa: F401
+    except Exception:
+        return "threading"
+
+    return "eventlet"
 
 
 def create_app():
@@ -28,13 +46,15 @@ def create_app():
     db.init_app(app)
     jwt.init_app(app)
     CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+    async_mode = get_socketio_async_mode()
     socketio.init_app(
         app,
         cors_allowed_origins="*",
-        async_mode="eventlet",
+        async_mode=async_mode,
         logger=False,
         engineio_logger=False,
     )
+    app.config["SOCKETIO_ASYNC_MODE"] = async_mode
 
     # Register blueprints
     from app.routes.auth import auth_bp

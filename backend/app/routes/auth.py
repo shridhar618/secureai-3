@@ -14,7 +14,7 @@ auth_bp = Blueprint("auth", __name__)
 @auth_bp.route("/register", methods=["POST"])
 def register():
     ensure_admin_user_schema()
-    data = request.get_json()
+    data = request.get_json() or {}
     username = data.get("username", "").strip()
     email = data.get("email", "").strip()
     password = data.get("password", "")
@@ -48,7 +48,7 @@ def register():
 @auth_bp.route("/login", methods=["POST"])
 def login():
     ensure_admin_user_schema()
-    data = request.get_json()
+    data = request.get_json() or {}
     username = data.get("username", "").strip()
     password = data.get("password", "")
 

@@ -750,12 +750,12 @@ def _score_question_search(item: dict, query_text: str) -> int:
 
     if query_text == question_text:
         score += 100
-    elif query_text in question_text:
+    elif _text_sequence_overlap(query_text, question_text):
         score += 40
 
     if query_text == category_text:
         score += 30
-    elif query_text in category_text:
+    elif _text_sequence_overlap(query_text, category_text):
         score += 12
 
     for keyword in item["keywords"]:
@@ -769,7 +769,7 @@ def _score_question_search(item: dict, query_text: str) -> int:
         alias_text = alias.lower()
         if query_text == alias_text:
             score += 35
-        elif query_text in alias_text or alias_text in query_text:
+        elif _text_sequence_overlap(query_text, alias_text) or _text_sequence_overlap(alias_text, query_text):
             score += 18
 
     question_tokens = set(_extract_keywords(question_text))
@@ -880,13 +880,13 @@ def _match_question_with_heuristics(query_text: str, role: str | None = None) ->
 
         if query_text == question_text:
             score += 100
-        elif question_text in query_text or query_text in question_text:
+        elif _text_sequence_overlap(question_text, query_text) or _text_sequence_overlap(query_text, question_text):
             score += 30
 
         for alias in item.get("aliases", []):
             if query_text == alias:
                 score += 60
-            elif alias in query_text or query_text in alias:
+            elif _text_sequence_overlap(alias, query_text) or _text_sequence_overlap(query_text, alias):
                 score += 24
 
         for keyword in item["keywords"]:
@@ -1112,6 +1112,10 @@ def _keyword_in_text(keyword: str, text: str) -> bool:
         if text_tokens[index:index + window_size] == keyword_tokens:
             return True
     return False
+
+
+def _text_sequence_overlap(left: str, right: str) -> bool:
+    return _keyword_in_text(left, right) or _keyword_in_text(right, left)
 
 
 def _extract_keywords(question: str) -> list[str]:

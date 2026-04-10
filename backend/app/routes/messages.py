@@ -33,7 +33,7 @@ def get_conversation(other_id):
 @jwt_required()
 def send_message():
     current_id = int(get_jwt_identity())
-    data = request.get_json()
+    data = request.get_json() or {}
     receiver_id = data.get("receiver_id")
     content = data.get("content", "").strip()
 
